@@ -60,8 +60,9 @@ trap 'rm -rf "$tmp"' EXIT
 echo "Building puff with the release ldflags for ${tag}..."
 go build -ldflags "${version_ldflag//\{\{.Version\}\}/$want}" -o "$tmp/puff" .
 
-# `puff version` prints "Version:    X.Y.Z"; take that field.
-got=$("$tmp/puff" version | awk '/^Version:/ {print $2}')
+# `puff version --json` prints {"version": "X.Y.Z", ...} and, unlike the human
+# form, makes no network update check, so the guard is deterministic.
+got=$("$tmp/puff" version --json | sed -nE 's/^[[:space:]]*"version":[[:space:]]*"([^"]*)".*/\1/p')
 
 if [ "$got" != "$want" ]; then
   note "puff reports version '$got' but the tag is '$tag' (expected '$want') — the -X ldflag is not reaching the version the binary prints"

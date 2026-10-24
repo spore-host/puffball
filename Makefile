@@ -1,4 +1,4 @@
-.PHONY: all build build-all clean install test lint fmt check check-fmt deps run help vuln gen-docs check-docs check-release-version changelog-fix probe probe-paid fixtures sweep-check
+.PHONY: all build build-all clean install test lint fmt check check-fmt deps run help vuln gen-docs check-docs check-release-version changelog-fix
 
 # Variables
 BINARY_NAME=puff
@@ -16,12 +16,6 @@ GOMOD=$(GOCMD) mod
 # Build flags
 LDFLAGS=-ldflags "-X github.com/spore-host/puffball/cmd.Version=$(VERSION) -s -w"
 
-# G0 probes and the post-session sweep. They talk to the AWS account named by
-# AWS_PROFILE. Paid probes refuse to run unless REAL=1 is set.
-PROBE=$(GOCMD) run ./scripts/probe
-# Raw responses carry account IDs, so they go to the gitignored .probe/ and only
-# reach testdata/ through scripts/scrub-fixtures.
-PROBE_OUT?=.probe
 
 # Default target
 all: test build
@@ -132,26 +126,6 @@ vuln:
 ## run: Run the application
 run: build
 	@$(BUILD_DIR)/$(BINARY_NAME)
-
-## probe: G0 read-only probes (devices in every region, Price List API); no spend
-probe:
-	$(PROBE) devices --out $(PROBE_OUT)/devices
-	$(PROBE) pricing --out $(PROBE_OUT)/pricing
-
-## probe-paid: G0(c) Braket tasks and G0(e) Cost Explorer; billable, requires REAL=1
-probe-paid:
-	@[ "$(REAL)" = "1" ] || { echo "probe-paid spends money: G0(c) Braket tasks and G0(e) Cost Explorer requests. Re-run with REAL=1."; exit 1; }
-	$(PROBE) tasks --real --out $(PROBE_OUT)/tasks
-	$(PROBE) costs --real --out $(PROBE_OUT)/costs
-
-## fixtures: Refresh testdata/devices/ from every Braket region, scrubbed
-fixtures:
-	$(PROBE) devices --out $(PROBE_OUT)/devices
-	$(GOCMD) run ./scripts/scrub-fixtures --in $(PROBE_OUT)/devices --out testdata/devices
-
-## sweep-check: Assert no queued/running puffball-tagged tasks and no spending limits remain, in any region
-sweep-check:
-	$(PROBE) sweep-check
 
 ## help: Show this help message
 help:

@@ -21,7 +21,7 @@ var gendocsCmd = &cobra.Command{
 	Use:    "gen-docs",
 	Short:  "Regenerate the docs reference fragments (internal)",
 	Hidden: true,
-	Args:   cobra.NoArgs,
+	Args:   usageArgs(cobra.NoArgs),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		frags, err := docgen.Generate(rootCmd, docgen.Options{CLIName: "puff"})
 		if err != nil {

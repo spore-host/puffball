@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spore-host/libs/i18n"
@@ -85,16 +86,29 @@ func run(root *cobra.Command, args []string, stderr io.Writer) int {
 	_, _ = fmt.Fprintln(stderr, "Error:", err)
 	var ue usageError
 	if errors.As(err, &ue) || isCobraUsageError(err) {
+		_, _ = fmt.Fprintf(stderr, "Run '%s --help' for usage.\n", root.CommandPath())
 		return exitUsage
 	}
 	return exitError
 }
 
-// isCobraUsageError reports whether err came from cobra's own argument or flag
-// parsing, which is a usage error.
+// isCobraUsageError reports whether err came from cobra's own flag parsing or
+// command lookup, which are usage errors. Cobra returns command-lookup failures
+// as plain errors, so they are recognised by their fixed prefix.
 func isCobraUsageError(err error) bool {
 	var fe flagError
-	return errors.As(err, &fe)
+	return errors.As(err, &fe) || strings.HasPrefix(err.Error(), "unknown command ")
+}
+
+// usageArgs wraps a cobra positional-argument validator so its failures are
+// usage errors (exit code 2).
+func usageArgs(v cobra.PositionalArgs) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if err := v(cmd, args); err != nil {
+			return usageError{err}
+		}
+		return nil
+	}
 }
 
 // flagError wraps errors from cobra's flag parsing (see SetFlagErrorFunc).
@@ -107,6 +121,9 @@ func init() {
 	// Execute prints the error itself and sets the exit code deliberately, so
 	// cobra must not print it a second time.
 	rootCmd.SilenceErrors = true
+	// A runtime error is not a reason to print the usage text; run prints a
+	// pointer to --help for usage errors only.
+	rootCmd.SilenceUsage = true
 	rootCmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		return flagError{err}
 	})

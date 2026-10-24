@@ -96,7 +96,8 @@ jobs:
       # code paths are not held to the floor.
       - name: Test
         run: |
-          go test -short ./scripts/...
+          # Guarded: `go test` exits 1 when a pattern matches no packages.
+          if [ -n "$(go list ./scripts/... 2>/dev/null)" ]; then go test -short ./scripts/...; fi
           go test -short -coverprofile=coverage.out $(go list ./... | grep -v '/scripts/')
 
       - name: Coverage gate

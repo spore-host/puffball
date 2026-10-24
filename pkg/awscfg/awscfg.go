@@ -11,6 +11,7 @@ package awscfg
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -61,5 +62,9 @@ func Load(ctx context.Context, regionOverride string) (aws.Config, error) {
 	if sc.Profile != "" {
 		opts = append(opts, awsconfig.WithSharedConfigProfile(sc.Profile))
 	}
-	return awsconfig.LoadDefaultConfig(ctx, opts...)
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
+	if err != nil {
+		return aws.Config{}, fmt.Errorf("load aws config: %w", err)
+	}
+	return cfg, nil
 }

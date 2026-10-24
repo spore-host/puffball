@@ -19,7 +19,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Long:  `Display version, build date, and git commit information for puff.`,
-	Args:  cobra.NoArgs,
+	Args:  usageArgs(cobra.NoArgs),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		out := cmd.OutOrStdout()
 		if jsonOutput {

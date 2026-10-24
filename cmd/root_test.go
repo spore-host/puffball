@@ -17,7 +17,7 @@ func newTestRoot(t *testing.T, err error) *cobra.Command {
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return flagError{err} })
 	root.AddCommand(&cobra.Command{
 		Use:  "do",
-		Args: cobra.NoArgs,
+		Args: usageArgs(cobra.NoArgs),
 		RunE: func(*cobra.Command, []string) error { return err },
 	})
 	root.SetOut(&bytes.Buffer{})
@@ -37,6 +37,8 @@ func TestRunExitCodes(t *testing.T) {
 		{"runtime error", errors.New("boom"), []string{"do"}, exitError, "boom"},
 		{"usage error from a command", usageErrorf("need --device"), []string{"do"}, exitUsage, "need --device"},
 		{"unknown flag", nil, []string{"do", "--nope"}, exitUsage, "unknown flag"},
+		{"unknown command", nil, []string{"bogus"}, exitUsage, "unknown command"},
+		{"extra argument", nil, []string{"do", "extra"}, exitUsage, "unknown command"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
