@@ -1,0 +1,18 @@
+{
+  "devices": [
+    {
+      "deviceArn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Aspen-M-3",
+      "deviceName": "Aspen-M-3",
+      "providerName": "Rigetti",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Ankaa-2",
+      "deviceName": "Ankaa-2",
+      "providerName": "Rigetti",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    }
+  ]
+}

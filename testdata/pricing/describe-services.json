@@ -1,0 +1,36 @@
+{
+  "FormatVersion": "aws_v1",
+  "Services": [
+    {
+      "AttributeNames": [
+        "termType",
+        "productFamily",
+        "servicecode",
+        "location",
+        "locationType",
+        "instanceType",
+        "memory",
+        "usagetype",
+        "operation",
+        "computeType",
+        "regionCode",
+        "servicename",
+        "vcpu",
+        "operationOutcome",
+        "productType",
+        "product-type",
+        "version",
+        "Restriction",
+        "simulatorName",
+        "volumeType",
+        "deviceName",
+        "deviceProvider",
+        "type",
+        "devicename",
+        "provider",
+        "unitconversiontype"
+      ],
+      "ServiceCode": "AmazonBraket"
+    }
+  ]
+}

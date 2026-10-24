@@ -1,0 +1,75 @@
+{
+  "devices": [
+    {
+      "deviceArn": "arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1",
+      "deviceName": "Aria 1",
+      "providerName": "IonQ",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:::device/quantum-simulator/amazon/sv1",
+      "deviceName": "SV1",
+      "providerName": "Amazon Braket",
+      "deviceType": "SIMULATOR",
+      "deviceStatus": "ONLINE"
+    },
+    {
+      "deviceArn": "arn:aws:braket:us-east-1::device/qpu/quera/Aquila",
+      "deviceName": "Aquila",
+      "providerName": "QuEra",
+      "deviceType": "QPU",
+      "deviceStatus": "ONLINE"
+    },
+    {
+      "deviceArn": "arn:aws:braket:us-east-1::device/qpu/ionq/Harmony",
+      "deviceName": "Harmony",
+      "providerName": "IonQ",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:::device/quantum-simulator/amazon/dm1",
+      "deviceName": "dm1",
+      "providerName": "Amazon Braket",
+      "deviceType": "SIMULATOR",
+      "deviceStatus": "ONLINE"
+    },
+    {
+      "deviceArn": "arn:aws:braket:::device/quantum-simulator/amazon/tn1",
+      "deviceName": "TN1",
+      "providerName": "Amazon Braket",
+      "deviceType": "SIMULATOR",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:us-east-1::device/qpu/ionq/Aria-2",
+      "deviceName": "Aria 2",
+      "providerName": "IonQ",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:us-east-1::device/qpu/ionq/Forte-Enterprise-1",
+      "deviceName": "Forte Enterprise 1",
+      "providerName": "IonQ",
+      "deviceType": "QPU",
+      "deviceStatus": "OFFLINE"
+    },
+    {
+      "deviceArn": "arn:aws:braket:us-east-1::device/qpu/ionq/Forte-1",
+      "deviceName": "Forte 1",
+      "providerName": "IonQ",
+      "deviceType": "QPU",
+      "deviceStatus": "ONLINE"
+    },
+    {
+      "deviceArn": "arn:aws:braket:us-east-1::device/qpu/xanadu/Borealis",
+      "deviceName": "Borealis",
+      "providerName": "Xanadu",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    }
+  ],
+  "nextToken": "AgV4G2XgvQ2YHmMye2arUR7Co5obojQ0hc7ZQNYjOEPJLnoArQAEAAphY2NvdW50X2lkAAw5NDI1NDI5NzI3MzYAFWF3cy1jcnlwdG8tcHVibGljLWtleQBEQXJybzJ1U0dtbmlFZEZESUY5eGJkVHJwTGMzZlY1SlZqNXE4RUc3MWNWS3pJZUhyZWEyRTY0U2NtZDc5NTIzYmhRPT0AD2V4cGlyYXRpb25fdGltZQAKMTc5Mjk0OTQyNQAScGFnaW5hdGlvbl92ZXJzaW9uAAExAAEAB2F3cy1rbXMAS2Fybjphd3M6a21zOnVzLWVhc3QtMToyNzM4OTg1MDUyMTM6a2V5L2VhZjFkNmMzLTM5OGQtNDU3OS1hNTczLWNmZmI1NDljNDk0YQC4AQIBAHiNd0HgJc8QYsEoTxHqyWtIRkK68yaKolo/dfeQz9boSgFDjgVi7a56HNwcoG1kBKnLAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMTu5NyfKscCYq6zcwAgEQgDvAwr5GNRa78o+FwIEGSzIGCJI/A+5Lm83IlptEJjBq73tToMelS+fNjuSZkdn1Bfg7sYpv8pyoNYA7mgIAABAAPVxIKmv5CZQQgMDdticafWLgDFhAyWhHOFMF01MzC+/NWxNiiPwCwrfaEIeFFPxZ/////wAAAAEAAAAAAAAAAAAAAAEAAABiypQ+E6qXLQN+fsgen31gJymKQRFzcw/C07WAjY2V8rPhYGJ7cVjE5RvgImDP5wE+UWy5pmETdBFUdjYP7fPhpdVXpkrFpYE/FUMRJpsb5bMwJ1duc3EbsMI6yty4WIIwh98G6QFThfFQsyXcmEpbtEnbAGcwZQIwK670uPF+0CuGd5APtJpn1b/XbT+FYCdoXxYKX2WAajX96/AyAMU0o6uS3Rj0b07yAjEAxlsOZS1qQ/Ir4jzxKyQzRkO5P+CfKuNe+iGR+pf7I8XxXG5aLD75t6e7oqKIm8JR"
+}

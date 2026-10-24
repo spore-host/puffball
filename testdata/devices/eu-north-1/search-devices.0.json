@@ -1,0 +1,25 @@
+{
+  "devices": [
+    {
+      "deviceArn": "arn:aws:braket:eu-north-1::device/qpu/aqt/Ibex-Q1",
+      "deviceName": "IBEX Q1",
+      "providerName": "AQT",
+      "deviceType": "QPU",
+      "deviceStatus": "ONLINE"
+    },
+    {
+      "deviceArn": "arn:aws:braket:eu-north-1::device/qpu/iqm/Garnet",
+      "deviceName": "Garnet",
+      "providerName": "IQM",
+      "deviceType": "QPU",
+      "deviceStatus": "ONLINE"
+    },
+    {
+      "deviceArn": "arn:aws:braket:eu-north-1::device/qpu/iqm/Emerald",
+      "deviceName": "Emerald",
+      "providerName": "IQM",
+      "deviceType": "QPU",
+      "deviceStatus": "ONLINE"
+    }
+  ]
+}

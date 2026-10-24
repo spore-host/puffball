@@ -1,0 +1,49 @@
+{
+  "Parameters": [
+    {
+      "ARN": "arn:aws:ssm:us-west-2::parameter/aws/service/global-infrastructure/services/braket/regions/eu-north-1",
+      "DataType": "text",
+      "LastModifiedDate": 1.716414751331E9,
+      "Name": "/aws/service/global-infrastructure/services/braket/regions/eu-north-1",
+      "Type": "String",
+      "Value": "eu-north-1",
+      "Version": 2
+    },
+    {
+      "ARN": "arn:aws:ssm:us-west-2::parameter/aws/service/global-infrastructure/services/braket/regions/eu-west-2",
+      "DataType": "text",
+      "LastModifiedDate": 1.714102595106E9,
+      "Name": "/aws/service/global-infrastructure/services/braket/regions/eu-west-2",
+      "Type": "String",
+      "Value": "eu-west-2",
+      "Version": 1
+    },
+    {
+      "ARN": "arn:aws:ssm:us-west-2::parameter/aws/service/global-infrastructure/services/braket/regions/us-east-1",
+      "DataType": "text",
+      "LastModifiedDate": 1.598491750543E9,
+      "Name": "/aws/service/global-infrastructure/services/braket/regions/us-east-1",
+      "Type": "String",
+      "Value": "us-east-1",
+      "Version": 1
+    },
+    {
+      "ARN": "arn:aws:ssm:us-west-2::parameter/aws/service/global-infrastructure/services/braket/regions/us-west-1",
+      "DataType": "text",
+      "LastModifiedDate": 1.598492391508E9,
+      "Name": "/aws/service/global-infrastructure/services/braket/regions/us-west-1",
+      "Type": "String",
+      "Value": "us-west-1",
+      "Version": 1
+    },
+    {
+      "ARN": "arn:aws:ssm:us-west-2::parameter/aws/service/global-infrastructure/services/braket/regions/us-west-2",
+      "DataType": "text",
+      "LastModifiedDate": 1.598492347235E9,
+      "Name": "/aws/service/global-infrastructure/services/braket/regions/us-west-2",
+      "Type": "String",
+      "Value": "us-west-2",
+      "Version": 1
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "quantumTasks": [
+    {
+      "createdAt": "2026-10-24T17:34:33.107Z",
+      "deviceArn": "arn:aws:braket:::device/quantum-simulator/amazon/sv1",
+      "endedAt": "2026-10-24T17:34:35.303Z",
+      "outputS3Bucket": "amazon-braket-us-west-1-000000000000",
+      "outputS3Directory": "puffball/g0c-1a1fdca0/d1b61d7d-936d-4574-af57-f962beb72375",
+      "quantumTaskArn": "arn:aws:braket:us-west-1:000000000000:quantum-task/d1b61d7d-936d-4574-af57-f962beb72375",
+      "shots": 100,
+      "status": "COMPLETED",
+      "tags": {
+        "puffball:project": "puffball-g0",
+        "puffball:run-id": "g0c-1a1fdca0",
+        "puffball:est-usd": "0.00375",
+        "puffball:rung": "sv1"
+      }
+    }
+  ],
+  "nextToken": null
+}

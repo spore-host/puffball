@@ -140,3 +140,7 @@ LICENSE, CHANGELOG, CLAUDE.md, CITATION.cff, code, tests, `testdata/`,
 - `make test` — all tests
 - `make build` — `bin/puff`
 - `make gen-docs` — regenerate `docs-gen/` (CI fails if stale)
+- `make probe` / `make probe-paid REAL=1` / `make fixtures` — G0 probes; raw
+  output goes to the gitignored `.probe/` and reaches `testdata/` only through
+  `scripts/scrub-fixtures`
+- `make sweep-check` — after every session that touched AWS
