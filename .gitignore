@@ -1,0 +1,16 @@
+# Binaries
+bin/
+/puff
+dist/
+
+# Raw G0 probe output: unscrubbed, carries account IDs. Never commit.
+.probe/
+
+# Test artifacts
+*.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
