@@ -440,12 +440,28 @@ func fetchResults(ctx context.Context, s3c *s3.Client, bucket, dir, out string) 
 			if err != nil {
 				return fmt.Errorf("read %s: %w", filepath.Base(key), err)
 			}
-			if err := writeRaw(filepath.Join(out, filepath.Base(key)), b); err != nil {
+			rel, err := resultPath(dir, key)
+			if err != nil {
+				return err
+			}
+			if err := writeRaw(filepath.Join(out, rel), b); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// resultPath is key relative to the task's output directory. Program-set
+// results nest (programs/<i>/results.json), so the base name alone would let
+// one program's files overwrite another's.
+func resultPath(dir, key string) (string, error) {
+	rel := strings.TrimPrefix(strings.TrimPrefix(key, dir), "/")
+	clean := filepath.Clean(filepath.FromSlash(rel))
+	if rel == "" || !filepath.IsLocal(clean) {
+		return "", fmt.Errorf("S3 key %q is not inside %q", key, dir)
+	}
+	return clean, nil
 }
 
 // tagChecks records whether SearchQuantumTasks can filter on tags (the API

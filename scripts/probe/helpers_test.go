@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestRegionOf(t *testing.T) {
 	cases := map[string]string{
@@ -57,5 +60,25 @@ func TestPlanEstimatesMatchPricingPage(t *testing.T) {
 	}
 	if got := simPerMinuteUSD * simMinSeconds / 60; money(got) != "$0.00375" {
 		t.Errorf("SV1 minimum = %s", money(got))
+	}
+}
+
+func TestResultPath(t *testing.T) {
+	dir := "puffball/run/task"
+	cases := map[string]string{
+		dir + "/results.json":                  "results.json",
+		dir + "/programs/0/results.json":       "programs/0/results.json",
+		dir + "/programs/1/executables/0.json": "programs/1/executables/0.json",
+	}
+	for key, want := range cases {
+		got, err := resultPath(dir, key)
+		if err != nil || got != filepath.FromSlash(want) {
+			t.Errorf("resultPath(%q) = %q, %v; want %q", key, got, err, want)
+		}
+	}
+	for _, key := range []string{dir, dir + "/", dir + "/../escape.json", "elsewhere/x.json/../../../y"} {
+		if got, err := resultPath(dir, key); err == nil {
+			t.Errorf("resultPath(%q) = %q, want an error", key, got)
+		}
 	}
 }

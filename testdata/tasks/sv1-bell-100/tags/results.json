@@ -1,5 +1,0 @@
-{
-  "filter puffball:run-id": "operation error Braket: SearchQuantumTasks, https response error StatusCode: 400, RequestID: dba7fe88-ff89-48eb-a56c-2eb30cd95154, ValidationException: Invalid search filters supplied. Please refer to https://docs.aws.amazon.com/braket/latest/APIReference/API_SearchQuantumTasksFilter.html",
-  "filter tag:puffball:run-id": "operation error Braket: SearchQuantumTasks, https response error StatusCode: 400, RequestID: f79d42a5-3ed5-430b-9a1e-95343f81ce61, ValidationException: Invalid search filters supplied. Please refer to https://docs.aws.amazon.com/braket/latest/APIReference/API_SearchQuantumTasksFilter.html",
-  "filter tags": "operation error Braket: SearchQuantumTasks, https response error StatusCode: 400, RequestID: a6b51dd4-7914-4832-a895-c764131e8b0f, ValidationException: Invalid search filters supplied. Please refer to https://docs.aws.amazon.com/braket/latest/APIReference/API_SearchQuantumTasksFilter.html"
-}

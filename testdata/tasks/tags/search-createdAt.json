@@ -1,0 +1,53 @@
+{
+  "quantumTasks": [
+    {
+      "createdAt": "2026-10-28T16:56:08.969Z",
+      "deviceArn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q",
+      "endedAt": "2026-10-28T16:58:04.515Z",
+      "outputS3Bucket": "amazon-braket-us-west-1-000000000000",
+      "outputS3Directory": "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6",
+      "quantumTaskArn": "arn:aws:braket:us-west-1:000000000000:quantum-task/a543ab67-6545-4cf0-8bbe-55f55bef1aa6",
+      "shots": 200,
+      "status": "COMPLETED",
+      "tags": {
+        "puffball:project": "puffball-g0",
+        "puffball:run-id": "g0c-1a1fdca0",
+        "puffball:est-usd": "0.385",
+        "puffball:rung": "qpu"
+      }
+    },
+    {
+      "createdAt": "2026-10-28T16:56:07.878Z",
+      "deviceArn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q",
+      "endedAt": "2026-10-28T16:58:02.289Z",
+      "outputS3Bucket": "amazon-braket-us-west-1-000000000000",
+      "outputS3Directory": "puffball/g0c-1a1fdca0/617b7e2b-f77f-433b-8226-6cc55eb8d077",
+      "quantumTaskArn": "arn:aws:braket:us-west-1:000000000000:quantum-task/617b7e2b-f77f-433b-8226-6cc55eb8d077",
+      "shots": 100,
+      "status": "COMPLETED",
+      "tags": {
+        "puffball:project": "puffball-g0",
+        "puffball:run-id": "g0c-1a1fdca0",
+        "puffball:est-usd": "0.3425",
+        "puffball:rung": "qpu"
+      }
+    },
+    {
+      "createdAt": "2026-10-24T17:34:33.107Z",
+      "deviceArn": "arn:aws:braket:::device/quantum-simulator/amazon/sv1",
+      "endedAt": "2026-10-24T17:34:35.303Z",
+      "outputS3Bucket": "amazon-braket-us-west-1-000000000000",
+      "outputS3Directory": "puffball/g0c-1a1fdca0/d1b61d7d-936d-4574-af57-f962beb72375",
+      "quantumTaskArn": "arn:aws:braket:us-west-1:000000000000:quantum-task/d1b61d7d-936d-4574-af57-f962beb72375",
+      "shots": 100,
+      "status": "COMPLETED",
+      "tags": {
+        "puffball:project": "puffball-g0",
+        "puffball:run-id": "g0c-1a1fdca0",
+        "puffball:est-usd": "0.00375",
+        "puffball:rung": "sv1"
+      }
+    }
+  ],
+  "nextToken": null
+}
