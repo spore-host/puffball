@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--region` (resolved flag > `SPORE_*`/`AWS_*` env > `~/.config/spore/config.toml`),
   `--json`, `--verbose`, `--lang`, `--no-emoji`, `--accessibility`.
 - **Exit codes** 0 (success), 1 (error), 2 (usage error).
+- **`puff price <device>`** prints the estimated cost of a run before anything
+  runs: `$0.30` per task plus shots × the device's per-shot price on QPUs, and
+  per-minute billing with a 3 s minimum on SV1 and DM1. `--tasks`, `--pack` (one
+  per-task fee per program set, gate-based QPUs only) and `--duration` are
+  supported. It is offline (no AWS call, no credentials). Every figure is
+  labelled an estimate with the price table's date (2026-10), and a warning
+  appears once the table is more than 60 days old. An unpriced device is an
+  error. `--json` is supported.
 
 ### Changed
 - **Repo tooling only, no change to `puff`:** G0 API probes (`make probe`,

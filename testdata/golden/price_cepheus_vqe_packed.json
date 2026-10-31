@@ -1,0 +1,17 @@
+{
+  "kind": "estimate",
+  "device": "cepheus",
+  "device_arn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q",
+  "prices_as_of": "2026-10",
+  "programs": 500,
+  "shots_per_program": 1000,
+  "pack": 5,
+  "billed_tasks": 100,
+  "total_shots": 500000,
+  "per_task_usd": "$0.30",
+  "per_shot_usd": "$0.000425",
+  "total_usd": "$242.50",
+  "arithmetic": "100 program sets x $0.30 + 500 programs x 1000 shots x $0.000425 = $242.50",
+  "device_name": "Rigetti Cepheus-1-108Q",
+  "warnings": []
+}

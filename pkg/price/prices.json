@@ -1,0 +1,173 @@
+{
+  "as_of": "2026-10",
+  "sources": [
+    "Prices: aws-quantum-tutorial-for-research src/quantum_tutorials/devices.py (PRICING_AS_OF 2026-10, commit 8a4d2e0), equal to the AWS Price List (AmazonBraket, publicationDate 2026-09-11T12:44:10Z) for every entry, testdata/pricing/",
+    "Program-set limits, shot ranges, ARNs, and the regions SV1/DM1 run in: GetDevice capabilities captured in G0, 2026-10-24, testdata/devices/",
+    "Simulator billing, Amazon Braket pricing page (read 2026-10-31), not in the Price List: 'You are billed at a per-minute rate, in increments of one millisecond, for the time your simulation takes to run.' and 'When you use on-demand simulators, you are billed for a minimum of 3 seconds per simulation.' The page does not say how a partial millisecond rounds; puff rounds up, per task, so an estimate is never below the per-ms charge. Not yet compared with a bill: Cost Explorer showed $0 for the G0 SV1 task (#6), and the page's free tier ('one hour of included on-demand simulation time per month for the first twelve months') may explain it."
+  ],
+  "per_task_usd": "0.30",
+  "devices": [
+    {
+      "alias": "cepheus",
+      "name": "Rigetti Cepheus-1-108Q",
+      "arn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q",
+      "per_shot_usd": "0.000425",
+      "usage": {
+        "task": "USW1-Task-Rigetti-Cepheus-1-108Q",
+        "shot": "USW1-Task-Shot-Rigetti-Cepheus-1-108Q"
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 200000
+      },
+      "shots_range": [
+        10,
+        50000
+      ]
+    },
+    {
+      "alias": "garnet",
+      "name": "IQM Garnet",
+      "arn": "arn:aws:braket:eu-north-1::device/qpu/iqm/Garnet",
+      "per_shot_usd": "0.00145",
+      "usage": {
+        "task": "EUN1-Task-IQM-Garnet",
+        "shot": "EUN1-Task-Shot-IQM-Garnet"
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 200000
+      },
+      "shots_range": [
+        1,
+        20000
+      ]
+    },
+    {
+      "alias": "emerald",
+      "name": "IQM Emerald",
+      "arn": "arn:aws:braket:eu-north-1::device/qpu/iqm/Emerald",
+      "per_shot_usd": "0.0016",
+      "usage": {
+        "task": "EUN1-Task-IQM-Emerald",
+        "shot": "EUN1-Task-Shot-IQM-Emerald"
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 200000
+      },
+      "shots_range": [
+        1,
+        20000
+      ]
+    },
+    {
+      "alias": "ibex",
+      "name": "AQT IBEX-Q1",
+      "arn": "arn:aws:braket:eu-north-1::device/qpu/aqt/Ibex-Q1",
+      "per_shot_usd": "0.0235",
+      "usage": {
+        "task": "EUN1-Task-AQT-IBEX-Q1",
+        "shot": "EUN1-Task-Shot-AQT-IBEX-Q1"
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 10000
+      },
+      "shots_range": [
+        1,
+        2000
+      ]
+    },
+    {
+      "alias": "forte",
+      "name": "IonQ Forte-1",
+      "arn": "arn:aws:braket:us-east-1::device/qpu/ionq/Forte-1",
+      "per_shot_usd": "0.08",
+      "usage": {
+        "task": "USE1-Task-IonQ-Forte-1",
+        "shot": "USE1-Task-Shot-IonQ-Forte-1"
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 100000,
+        "min_total_shots": 100
+      },
+      "shots_range": [
+        100,
+        5000
+      ]
+    },
+    {
+      "alias": "forte-enterprise",
+      "name": "IonQ Forte-Enterprise-1",
+      "arn": "arn:aws:braket:us-east-1::device/qpu/ionq/Forte-Enterprise-1",
+      "per_shot_usd": "0.08",
+      "usage": {
+        "task": "USE1-Task-IonQ-Forte-Enterprise-1",
+        "shot": "USE1-Task-Shot-IonQ-Forte-Enterprise-1"
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 100000,
+        "min_total_shots": 100
+      },
+      "shots_range": [
+        100,
+        5000
+      ]
+    },
+    {
+      "alias": "aquila",
+      "name": "QuEra Aquila",
+      "arn": "arn:aws:braket:us-east-1::device/qpu/quera/Aquila",
+      "per_shot_usd": "0.01",
+      "usage": {
+        "task": "USE1-Task-QuEra-Aquila",
+        "shot": "USE1-Task-Shot-QuEra-Aquila"
+      },
+      "shots_range": [
+        1,
+        1000
+      ]
+    },
+    {
+      "alias": "sv1",
+      "name": "Amazon SV1",
+      "arn": "arn:aws:braket:::device/quantum-simulator/amazon/sv1",
+      "per_minute_usd": "0.075",
+      "minimum_seconds": 3,
+      "usage": {
+        "minutes": [
+          "EUW2-Completed-Task-ExecutionDuration-SV1",
+          "USE1-Completed-Task-ExecutionDuration-SV1",
+          "USW1-Completed-Task-ExecutionDuration-SV1",
+          "USW2-Completed-Task-ExecutionDuration-SV1"
+        ]
+      },
+      "shots_range": [
+        0,
+        100000
+      ]
+    },
+    {
+      "alias": "dm1",
+      "name": "Amazon DM1",
+      "arn": "arn:aws:braket:::device/quantum-simulator/amazon/dm1",
+      "per_minute_usd": "0.075",
+      "minimum_seconds": 3,
+      "usage": {
+        "minutes": [
+          "EUW2-Completed-Task-ExecutionDuration-DM1",
+          "USE1-Completed-Task-ExecutionDuration-DM1",
+          "USW1-Completed-Task-ExecutionDuration-DM1",
+          "USW2-Completed-Task-ExecutionDuration-DM1"
+        ]
+      },
+      "shots_range": [
+        0,
+        100000
+      ]
+    }
+  ]
+}
