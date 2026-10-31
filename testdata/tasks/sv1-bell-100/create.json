@@ -1,0 +1,4 @@
+{
+  "quantumTaskArn": "arn:aws:braket:us-west-1:000000000000:quantum-task/d1b61d7d-936d-4574-af57-f962beb72375",
+  "status": "INITIALIZED"
+}

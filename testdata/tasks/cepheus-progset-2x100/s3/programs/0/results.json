@@ -1,0 +1,19 @@
+{
+  "braketSchemaHeader": {
+    "name": "braket.task_result.program_result",
+    "version": "1"
+  },
+  "executableResults": [
+    "executables/0.json"
+  ],
+  "source": "program.json",
+  "additionalMetadata": {
+    "rigettiMetadata": {
+      "braketSchemaHeader": {
+        "name": "braket.task_result.rigetti_metadata",
+        "version": "1"
+      },
+      "compiledProgram": "OPENQASM 3.0;\nbit[2] c;\n#pragma braket verbatim\nbox {\nrz(0.5*pi) $81;\nrz(1.0*pi) $90;\nrx(0.5*pi) $81;\nrx(0.5*pi) $90;\nrz(0.5*pi) $81;\nrz(0.5*pi) $90;\nrx(-0.5*pi) $90;\ncz $81,$90;\nrz(1.0*pi) $90;\nrx(0.5*pi) $90;\nrz(0.5*pi) $90;\nrx(-0.5*pi) $90;\n}\nc[0] = measure $81;\nc[1] = measure $90;"
+    }
+  }
+}

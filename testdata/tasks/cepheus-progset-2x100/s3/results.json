@@ -1,0 +1,15 @@
+{
+  "braketSchemaHeader": {
+    "name": "braket.task_result.program_set_task_result",
+    "version": "1"
+  },
+  "taskMetadata": "metadata.json",
+  "programResults": [
+    "programs/0/results.json",
+    "programs/1/results.json"
+  ],
+  "s3Location": [
+    "amazon-braket-us-west-1-000000000000",
+    "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6"
+  ]
+}

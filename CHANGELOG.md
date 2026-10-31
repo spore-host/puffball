@@ -15,4 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--json`, `--verbose`, `--lang`, `--no-emoji`, `--accessibility`.
 - **Exit codes** 0 (success), 1 (error), 2 (usage error).
 
+### Changed
+- **Repo tooling only, no change to `puff`:** G0 API probes (`make probe`,
+  `make probe-paid REAL=1`, `make fixtures`, `make sweep-check`), the fixture
+  scrubber, and scrubbed device, task and Price List fixtures under `testdata/`.
+
 [Unreleased]: https://github.com/spore-host/puffball/commits/main

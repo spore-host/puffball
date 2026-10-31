@@ -1,0 +1,60 @@
+{
+  "devices": [
+    {
+      "deviceArn": "arn:aws:braket:::device/qpu/d-wave/Advantage_system1",
+      "deviceName": "Advantage_system1.1",
+      "providerName": "D-Wave Systems",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:::device/quantum-simulator/amazon/sv1",
+      "deviceName": "SV1",
+      "providerName": "Amazon Braket",
+      "deviceType": "SIMULATOR",
+      "deviceStatus": "ONLINE"
+    },
+    {
+      "deviceArn": "arn:aws:braket:::device/qpu/d-wave/Advantage_system4",
+      "deviceName": "Advantage_system4.1",
+      "providerName": "D-Wave Systems",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:::device/quantum-simulator/amazon/dm1",
+      "deviceName": "dm1",
+      "providerName": "Amazon Braket",
+      "deviceType": "SIMULATOR",
+      "deviceStatus": "ONLINE"
+    },
+    {
+      "deviceArn": "arn:aws:braket:::device/quantum-simulator/amazon/tn1",
+      "deviceName": "TN1",
+      "providerName": "Amazon Braket",
+      "deviceType": "SIMULATOR",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:us-west-2::device/qpu/d-wave/Advantage_system6",
+      "deviceName": "Advantage_system6.1",
+      "providerName": "D-Wave Systems",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:::device/qpu/d-wave/Advantage_system3",
+      "deviceName": "Advantage_system3.2",
+      "providerName": "D-Wave Systems",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    },
+    {
+      "deviceArn": "arn:aws:braket:::device/qpu/d-wave/DW_2000Q_6",
+      "deviceName": "DW_2000Q_6",
+      "providerName": "D-Wave Systems",
+      "deviceType": "QPU",
+      "deviceStatus": "RETIRED"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "braketSchemaHeader": {
+    "name": "braket.task_result.program_set_task_metadata",
+    "version": "1"
+  },
+  "id": "arn:aws:braket:us-west-1:000000000000:quantum-task/a543ab67-6545-4cf0-8bbe-55f55bef1aa6",
+  "deviceId": "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q",
+  "requestedShots": 200,
+  "successfulShots": 200,
+  "programMetadata": [
+    {
+      "executables": [
+        {}
+      ]
+    },
+    {
+      "executables": [
+        {}
+      ]
+    }
+  ],
+  "deviceParameters": null,
+  "createdAt": "2026-10-28T16:56:08.969Z",
+  "endedAt": "2026-10-28T16:58:04.515Z",
+  "status": "COMPLETED",
+  "totalFailedExecutables": 0
+}
