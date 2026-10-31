@@ -27,6 +27,10 @@ and you do NOT post — you report.
 4. **Spend.** Each paid action states its estimate with the price as-of date
    (law 2). The gate total is under its stop limit. Only Cepheus and SV1 were
    used in G0–G1 (law 8). `make sweep-check` output is included and clean.
+   Every billable call (Braket `Create*`, any Cost Explorer request) was made
+   through `puff` or a `make` target with `REAL=1`. A billable call made by
+   hand (an `aws` CLI command, a one-off script) is a **Critical** finding,
+   even when its cost was small and stated (G0, #30).
 5. **No account numbers (law 7).** Search the report for 12-digit numbers,
    ARNs with an account field, bucket names with an account suffix, and IAM
    user or role names. Any hit is a Critical finding.
