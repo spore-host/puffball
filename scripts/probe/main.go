@@ -10,6 +10,7 @@
 //	probe pricing     --out DIR     G0(b): Price List API for AmazonBraket (read-only)
 //	probe tasks --real --out DIR    G0(c): SV1 + Cepheus tasks and a program set (billable)
 //	probe costs --real --out DIR    G0(e): Cost Explorer for Braket (billable, $0.01/request)
+//	probe idempotency --real       #35: is CreateQuantumTask idempotent on ClientToken (billable, SV1)
 //	probe sweep-check               no queued/running puffball-tagged tasks, no spending limits
 package main
 
@@ -21,7 +22,7 @@ import (
 )
 
 // usage is printed for a missing or unknown subcommand.
-const usage = `usage: probe <devices|pricing|tasks|costs|sweep-check> [flags]
+const usage = `usage: probe <devices|pricing|tasks|costs|idempotency|sweep-check> [flags]
 run 'probe <subcommand> -h' for its flags`
 
 func main() {
@@ -41,6 +42,8 @@ func main() {
 		err = runTasks(ctx, args)
 	case "costs":
 		err = runCosts(ctx, args)
+	case "idempotency":
+		err = runIdempotency(ctx, args)
 	case "sweep-check":
 		err = runSweepCheck(ctx, args)
 	default:

@@ -1,6 +1,7 @@
 package scrub
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -51,5 +52,19 @@ func TestFind(t *testing.T) {
 	}
 	if f := Find([]byte(`0.305363491528e-05 1.598492347235E-3`)); len(f) != 0 {
 		t.Errorf("Find flagged float mantissas: %q", f)
+	}
+}
+
+func TestError(t *testing.T) {
+	if Error(nil) != nil {
+		t.Error("Error(nil) != nil")
+	}
+	cause := errors.New("denied for arn:aws:iam::123456789012:user/bob")
+	err := Error(cause)
+	if strings.Contains(err.Error(), "123456789012") || strings.Contains(err.Error(), "bob") {
+		t.Errorf("not scrubbed: %s", err)
+	}
+	if !errors.Is(err, cause) {
+		t.Error("cause lost")
 	}
 }

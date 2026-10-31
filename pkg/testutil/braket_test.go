@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -161,5 +162,56 @@ func TestFakeBraketRecordsSearchStatuses(t *testing.T) {
 	}})
 	if got := b.Searches(); len(got) != 2 || got[0] != "" || got[1] != "QUEUED" {
 		t.Errorf("Searches() = %q", got)
+	}
+}
+
+func TestRecordingCreatorMirrorsServiceTokenRules(t *testing.T) {
+	ctx := context.Background()
+	c := &RecordingCreator{}
+	in := braket.CreateQuantumTaskInput{
+		Action: aws.String("{}"), ClientToken: aws.String("t"), DeviceArn: aws.String("arn:d"),
+		OutputS3Bucket: aws.String("b"), OutputS3KeyPrefix: aws.String("p"), Shots: aws.Int64(100),
+	}
+	a, err := c.CreateQuantumTask(ctx, &in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := c.CreateQuantumTask(ctx, &in)
+	if aws.ToString(a.QuantumTaskArn) != aws.ToString(b.QuantumTaskArn) || c.Created() != 1 {
+		t.Error("same token, same input: want the first ARN back")
+	}
+	in.Shots = aws.Int64(200)
+	var conflict *types.ConflictException
+	if _, err := c.CreateQuantumTask(ctx, &in); !errors.As(err, &conflict) || !strings.Contains(err.Error(), "Idempotency token reused") {
+		t.Errorf("same token, other input: %v; want *types.ConflictException as measured in #35", err)
+	}
+	if _, err := c.CreateQuantumTask(ctx, &braket.CreateQuantumTaskInput{}); err == nil {
+		t.Error("missing client token accepted")
+	}
+}
+
+// tbRecorder captures Errorf so FailingCreators can be tested without
+// failing this test.
+type tbRecorder struct {
+	testing.TB
+	failed bool
+}
+
+func (r *tbRecorder) Errorf(string, ...any) { r.failed = true }
+
+func TestFailingCreatorFailsTheTest(t *testing.T) {
+	rec := &tbRecorder{}
+	c, _ := FailingCreators(rec)(context.Background(), "us-west-1")
+	if _, err := c.CreateQuantumTask(context.Background(), &braket.CreateQuantumTaskInput{}); err == nil || !rec.failed {
+		t.Error("a billable call through FailingCreators did not fail the test")
+	}
+	rc := &RecordingCreator{}
+	east, _ := rc.Factory()(context.Background(), "us-east-1")
+	out, err := east.CreateQuantumTask(context.Background(), &braket.CreateQuantumTaskInput{
+		Action: aws.String("{}"), ClientToken: aws.String("t"), DeviceArn: aws.String("arn:d"),
+		OutputS3Bucket: aws.String("b"), OutputS3KeyPrefix: aws.String("p"), Shots: aws.Int64(1),
+	})
+	if err != nil || !strings.HasPrefix(aws.ToString(out.QuantumTaskArn), "arn:aws:braket:us-east-1:") {
+		t.Errorf("Factory region not used in the ARN: %v %v", out, err)
 	}
 }
