@@ -1,0 +1,1034 @@
+{
+  "devices": [
+    {
+      "alias": "aquila",
+      "name": "Aquila",
+      "provider": "QuEra",
+      "arn": "arn:aws:braket:us-east-1::device/qpu/quera/Aquila",
+      "type": "QPU",
+      "status": "ONLINE",
+      "regions": [
+        "us-east-1"
+      ],
+      "paradigm": "analog",
+      "qubits": 256,
+      "shots_range": [
+        1,
+        1000
+      ],
+      "execution_windows": [
+        {
+          "day": "Friday",
+          "start": "04:00:00",
+          "end": "11:59:59"
+        },
+        {
+          "day": "Friday",
+          "start": "13:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Saturday",
+          "start": "01:00:00",
+          "end": "11:59:59"
+        },
+        {
+          "day": "Saturday",
+          "start": "13:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Sunday",
+          "start": "01:00:00",
+          "end": "11:59:59"
+        },
+        {
+          "day": "Sunday",
+          "start": "13:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Monday",
+          "start": "01:00:00",
+          "end": "03:59:59"
+        }
+      ],
+      "queues": [
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Normal",
+          "size": "470"
+        },
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Priority",
+          "size": "0"
+        },
+        {
+          "queue": "JOBS_QUEUE",
+          "size": "0"
+        }
+      ],
+      "queues_by_region": {
+        "us-east-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "470"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ]
+      },
+      "calibration": {
+        "at": null,
+        "missing": "the device's capabilities carry no calibration timestamp; service.updatedAt is the document's time, not the calibration's, so it is not used"
+      },
+      "capabilities_updated_at": "2026-10-19T12:00:00+00:00",
+      "window_open": true,
+      "estimate": {
+        "kind": "estimate",
+        "device": "aquila",
+        "device_arn": "arn:aws:braket:us-east-1::device/qpu/quera/Aquila",
+        "prices_as_of": "2026-10",
+        "programs": 1,
+        "shots_per_program": 1000,
+        "billed_tasks": 1,
+        "total_shots": 1000,
+        "per_task_usd": "$0.30",
+        "per_shot_usd": "$0.01",
+        "total_usd": "$10.30",
+        "arithmetic": "$0.30 + 1000 x $0.01 = $10.30"
+      }
+    },
+    {
+      "alias": "cepheus",
+      "name": "Cepheus-1-108Q",
+      "provider": "Rigetti",
+      "arn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q",
+      "type": "QPU",
+      "status": "ONLINE",
+      "regions": [
+        "us-west-1"
+      ],
+      "paradigm": "gate",
+      "qubits": 107,
+      "native_gates": [
+        "rx",
+        "rz",
+        "cz",
+        "barrier"
+      ],
+      "shots_range": [
+        10,
+        50000
+      ],
+      "execution_windows": [
+        {
+          "day": "Everyday",
+          "start": "00:00:00",
+          "end": "01:59:59"
+        },
+        {
+          "day": "Everyday",
+          "start": "04:00:00",
+          "end": "13:59:59"
+        },
+        {
+          "day": "Everyday",
+          "start": "16:00:00",
+          "end": "23:59:59"
+        }
+      ],
+      "queues": [
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Normal",
+          "size": "0"
+        },
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Priority",
+          "size": "0"
+        },
+        {
+          "queue": "JOBS_QUEUE",
+          "size": "0"
+        }
+      ],
+      "queues_by_region": {
+        "us-west-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ]
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 200000
+      },
+      "calibration": {
+        "at": "2026-09-14T14:24:06Z",
+        "newest": "2026-10-24T14:23:23Z",
+        "source": "provider.specs.benchmarks[].sites[].characteristics[].timestamp (oldest; newest in newest)"
+      },
+      "capabilities_updated_at": "2026-10-24T17:02:03+00:00",
+      "window_open": true,
+      "estimate": {
+        "kind": "estimate",
+        "device": "cepheus",
+        "device_arn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q",
+        "prices_as_of": "2026-10",
+        "programs": 1,
+        "shots_per_program": 1000,
+        "billed_tasks": 1,
+        "total_shots": 1000,
+        "per_task_usd": "$0.30",
+        "per_shot_usd": "$0.000425",
+        "total_usd": "$0.725",
+        "arithmetic": "$0.30 + 1000 x $0.000425 = $0.725"
+      }
+    },
+    {
+      "alias": "emerald",
+      "name": "Emerald",
+      "provider": "IQM",
+      "arn": "arn:aws:braket:eu-north-1::device/qpu/iqm/Emerald",
+      "type": "QPU",
+      "status": "ONLINE",
+      "regions": [
+        "eu-north-1"
+      ],
+      "paradigm": "gate",
+      "qubits": 54,
+      "native_gates": [
+        "cz",
+        "prx",
+        "cc_prx",
+        "measure_ff",
+        "barrier"
+      ],
+      "shots_range": [
+        1,
+        20000
+      ],
+      "execution_windows": [
+        {
+          "day": "Weekdays",
+          "start": "00:00:00",
+          "end": "03:29:59"
+        },
+        {
+          "day": "Weekdays",
+          "start": "07:20:00",
+          "end": "23:59:59"
+        }
+      ],
+      "queues": [
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Normal",
+          "size": "4"
+        },
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Priority",
+          "size": "0"
+        },
+        {
+          "queue": "JOBS_QUEUE",
+          "size": "0"
+        }
+      ],
+      "queues_by_region": {
+        "eu-north-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "4"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ]
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 200000
+      },
+      "calibration": {
+        "at": null,
+        "missing": "the device's capabilities carry no calibration timestamp; service.updatedAt is the document's time, not the calibration's, so it is not used"
+      },
+      "capabilities_updated_at": "2026-10-24T05:30:20.553626+00:00",
+      "window_open": false,
+      "next_window": "2026-10-26T00:00:00Z",
+      "estimate": {
+        "kind": "estimate",
+        "device": "emerald",
+        "device_arn": "arn:aws:braket:eu-north-1::device/qpu/iqm/Emerald",
+        "prices_as_of": "2026-10",
+        "programs": 1,
+        "shots_per_program": 1000,
+        "billed_tasks": 1,
+        "total_shots": 1000,
+        "per_task_usd": "$0.30",
+        "per_shot_usd": "$0.0016",
+        "total_usd": "$1.90",
+        "arithmetic": "$0.30 + 1000 x $0.0016 = $1.90"
+      }
+    },
+    {
+      "alias": "forte",
+      "name": "Forte 1",
+      "provider": "IonQ",
+      "arn": "arn:aws:braket:us-east-1::device/qpu/ionq/Forte-1",
+      "type": "QPU",
+      "status": "ONLINE",
+      "regions": [
+        "us-east-1"
+      ],
+      "paradigm": "gate",
+      "qubits": 36,
+      "native_gates": [
+        "GPI",
+        "GPI2",
+        "ZZ"
+      ],
+      "shots_range": [
+        100,
+        5000
+      ],
+      "execution_windows": [
+        {
+          "day": "Sunday",
+          "start": "00:00:00",
+          "end": "17:59:59"
+        },
+        {
+          "day": "Sunday",
+          "start": "18:30:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Monday",
+          "start": "00:00:00",
+          "end": "17:59:59"
+        },
+        {
+          "day": "Monday",
+          "start": "18:30:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Tuesday",
+          "start": "00:00:00",
+          "end": "17:59:59"
+        },
+        {
+          "day": "Tuesday",
+          "start": "18:30:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Wednesday",
+          "start": "00:00:00",
+          "end": "13:59:59"
+        },
+        {
+          "day": "Wednesday",
+          "start": "20:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Thursday",
+          "start": "00:00:00",
+          "end": "17:59:59"
+        },
+        {
+          "day": "Thursday",
+          "start": "18:30:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Friday",
+          "start": "00:00:00",
+          "end": "17:59:59"
+        },
+        {
+          "day": "Friday",
+          "start": "18:30:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Saturday",
+          "start": "00:00:00",
+          "end": "17:59:59"
+        },
+        {
+          "day": "Saturday",
+          "start": "18:30:00",
+          "end": "23:59:59"
+        }
+      ],
+      "queues": [
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Normal",
+          "size": "0"
+        },
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Priority",
+          "size": "0"
+        },
+        {
+          "queue": "JOBS_QUEUE",
+          "size": "0"
+        }
+      ],
+      "queues_by_region": {
+        "us-east-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ]
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 100000,
+        "min_total_shots": 100
+      },
+      "calibration": {
+        "at": "2026-10-23T00:00:00Z",
+        "source": "standardized.updatedAt"
+      },
+      "capabilities_updated_at": "2026-10-23T00:00:00+00:00",
+      "window_open": true,
+      "estimate": {
+        "kind": "estimate",
+        "device": "forte",
+        "device_arn": "arn:aws:braket:us-east-1::device/qpu/ionq/Forte-1",
+        "prices_as_of": "2026-10",
+        "programs": 1,
+        "shots_per_program": 1000,
+        "billed_tasks": 1,
+        "total_shots": 1000,
+        "per_task_usd": "$0.30",
+        "per_shot_usd": "$0.08",
+        "total_usd": "$80.30",
+        "arithmetic": "$0.30 + 1000 x $0.08 = $80.30"
+      }
+    },
+    {
+      "alias": "forte-enterprise",
+      "name": "Forte Enterprise 1",
+      "provider": "IonQ",
+      "arn": "arn:aws:braket:us-east-1::device/qpu/ionq/Forte-Enterprise-1",
+      "type": "QPU",
+      "status": "OFFLINE",
+      "regions": [
+        "us-east-1"
+      ],
+      "paradigm": "gate",
+      "qubits": 36,
+      "native_gates": [
+        "GPI",
+        "GPI2",
+        "ZZ"
+      ],
+      "shots_range": [
+        100,
+        5000
+      ],
+      "execution_windows": [
+        {
+          "day": "Sunday",
+          "start": "00:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Monday",
+          "start": "00:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Tuesday",
+          "start": "00:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Wednesday",
+          "start": "00:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Thursday",
+          "start": "00:00:00",
+          "end": "07:59:59"
+        },
+        {
+          "day": "Thursday",
+          "start": "14:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Friday",
+          "start": "00:00:00",
+          "end": "23:59:59"
+        },
+        {
+          "day": "Saturday",
+          "start": "00:00:00",
+          "end": "23:59:59"
+        }
+      ],
+      "queues": [
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Normal",
+          "size": "0"
+        },
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Priority",
+          "size": "0"
+        },
+        {
+          "queue": "JOBS_QUEUE",
+          "size": "0"
+        }
+      ],
+      "queues_by_region": {
+        "us-east-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ]
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 100000,
+        "min_total_shots": 100
+      },
+      "calibration": {
+        "at": "2026-10-19T00:00:00Z",
+        "source": "standardized.updatedAt"
+      },
+      "capabilities_updated_at": "2026-10-19T00:00:00+00:00",
+      "window_open": true,
+      "estimate": {
+        "kind": "estimate",
+        "device": "forte-enterprise",
+        "device_arn": "arn:aws:braket:us-east-1::device/qpu/ionq/Forte-Enterprise-1",
+        "prices_as_of": "2026-10",
+        "programs": 1,
+        "shots_per_program": 1000,
+        "billed_tasks": 1,
+        "total_shots": 1000,
+        "per_task_usd": "$0.30",
+        "per_shot_usd": "$0.08",
+        "total_usd": "$80.30",
+        "arithmetic": "$0.30 + 1000 x $0.08 = $80.30"
+      }
+    },
+    {
+      "alias": "garnet",
+      "name": "Garnet",
+      "provider": "IQM",
+      "arn": "arn:aws:braket:eu-north-1::device/qpu/iqm/Garnet",
+      "type": "QPU",
+      "status": "ONLINE",
+      "regions": [
+        "eu-north-1"
+      ],
+      "paradigm": "gate",
+      "qubits": 20,
+      "native_gates": [
+        "cz",
+        "prx",
+        "cc_prx",
+        "measure_ff",
+        "barrier"
+      ],
+      "shots_range": [
+        1,
+        20000
+      ],
+      "execution_windows": [
+        {
+          "day": "Weekdays",
+          "start": "00:00:00",
+          "end": "01:29:59"
+        },
+        {
+          "day": "Weekdays",
+          "start": "03:15:00",
+          "end": "15:29:59"
+        },
+        {
+          "day": "Weekdays",
+          "start": "17:15:00",
+          "end": "23:59:59"
+        }
+      ],
+      "queues": [
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Normal",
+          "size": "0"
+        },
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Priority",
+          "size": "0"
+        },
+        {
+          "queue": "JOBS_QUEUE",
+          "size": "0"
+        }
+      ],
+      "queues_by_region": {
+        "eu-north-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ]
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 200000
+      },
+      "calibration": {
+        "at": null,
+        "missing": "the device's capabilities carry no calibration timestamp; service.updatedAt is the document's time, not the calibration's, so it is not used"
+      },
+      "capabilities_updated_at": "2026-10-24T16:38:59.854625+00:00",
+      "window_open": false,
+      "next_window": "2026-10-26T00:00:00Z",
+      "estimate": {
+        "kind": "estimate",
+        "device": "garnet",
+        "device_arn": "arn:aws:braket:eu-north-1::device/qpu/iqm/Garnet",
+        "prices_as_of": "2026-10",
+        "programs": 1,
+        "shots_per_program": 1000,
+        "billed_tasks": 1,
+        "total_shots": 1000,
+        "per_task_usd": "$0.30",
+        "per_shot_usd": "$0.00145",
+        "total_usd": "$1.75",
+        "arithmetic": "$0.30 + 1000 x $0.00145 = $1.75"
+      }
+    },
+    {
+      "alias": "ibex",
+      "name": "IBEX Q1",
+      "provider": "AQT",
+      "arn": "arn:aws:braket:eu-north-1::device/qpu/aqt/Ibex-Q1",
+      "type": "QPU",
+      "status": "ONLINE",
+      "regions": [
+        "eu-north-1"
+      ],
+      "paradigm": "gate",
+      "qubits": 12,
+      "native_gates": [
+        "prx",
+        "xx",
+        "rz"
+      ],
+      "shots_range": [
+        1,
+        2000
+      ],
+      "execution_windows": [
+        {
+          "day": "Monday",
+          "start": "11:00:00",
+          "end": "15:00:00"
+        },
+        {
+          "day": "Tuesday",
+          "start": "08:00:00",
+          "end": "15:00:00"
+        },
+        {
+          "day": "Wednesday",
+          "start": "08:00:00",
+          "end": "15:00:00"
+        },
+        {
+          "day": "Friday",
+          "start": "08:00:00",
+          "end": "15:00:00"
+        }
+      ],
+      "queues": [
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Normal",
+          "size": "2"
+        },
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Priority",
+          "size": "0"
+        },
+        {
+          "queue": "JOBS_QUEUE",
+          "size": "0"
+        }
+      ],
+      "queues_by_region": {
+        "eu-north-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "2"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ]
+      },
+      "program_set": {
+        "max_executables": 100,
+        "max_total_shots": 10000
+      },
+      "calibration": {
+        "at": "2026-10-20T13:05:10Z",
+        "source": "standardized.updatedAt"
+      },
+      "capabilities_updated_at": "2026-10-20T13:05:10+00:00",
+      "window_open": false,
+      "next_window": "2026-10-26T11:00:00Z",
+      "estimate": {
+        "kind": "estimate",
+        "device": "ibex",
+        "device_arn": "arn:aws:braket:eu-north-1::device/qpu/aqt/Ibex-Q1",
+        "prices_as_of": "2026-10",
+        "programs": 1,
+        "shots_per_program": 1000,
+        "billed_tasks": 1,
+        "total_shots": 1000,
+        "per_task_usd": "$0.30",
+        "per_shot_usd": "$0.0235",
+        "total_usd": "$23.80",
+        "arithmetic": "$0.30 + 1000 x $0.0235 = $23.80"
+      }
+    },
+    {
+      "alias": "sv1",
+      "name": "SV1",
+      "provider": "Amazon Braket",
+      "arn": "arn:aws:braket:::device/quantum-simulator/amazon/sv1",
+      "type": "SIMULATOR",
+      "status": "ONLINE",
+      "regions": [
+        "eu-west-2",
+        "us-east-1",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "paradigm": "gate",
+      "qubits": 34,
+      "shots_range": [
+        0,
+        100000
+      ],
+      "execution_windows": [
+        {
+          "day": "Everyday",
+          "start": "00:00:00",
+          "end": "23:59:59"
+        }
+      ],
+      "queues": [
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Normal",
+          "size": "0"
+        },
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Priority",
+          "size": "0"
+        },
+        {
+          "queue": "JOBS_QUEUE",
+          "size": "0"
+        }
+      ],
+      "queues_by_region": {
+        "eu-west-2": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ],
+        "us-east-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ],
+        "us-west-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "2"
+          }
+        ],
+        "us-west-2": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ]
+      },
+      "status_by_region": {
+        "eu-west-2": "ONLINE",
+        "us-east-1": "ONLINE",
+        "us-west-1": "ONLINE",
+        "us-west-2": "ONLINE"
+      },
+      "calibration": {
+        "at": null,
+        "missing": "simulators have no calibration"
+      },
+      "capabilities_updated_at": "2022-06-22T10:18:00",
+      "window_open": true,
+      "per_minute_usd": "$0.075"
+    },
+    {
+      "alias": "dm1",
+      "name": "dm1",
+      "provider": "Amazon Braket",
+      "arn": "arn:aws:braket:::device/quantum-simulator/amazon/dm1",
+      "type": "SIMULATOR",
+      "status": "ONLINE",
+      "regions": [
+        "eu-west-2",
+        "us-east-1",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "paradigm": "gate",
+      "qubits": 17,
+      "shots_range": [
+        0,
+        100000
+      ],
+      "execution_windows": [
+        {
+          "day": "Everyday",
+          "start": "00:00:00",
+          "end": "23:59:59"
+        }
+      ],
+      "queues": [
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Normal",
+          "size": "0"
+        },
+        {
+          "queue": "QUANTUM_TASKS_QUEUE",
+          "priority": "Priority",
+          "size": "0"
+        },
+        {
+          "queue": "JOBS_QUEUE",
+          "size": "0"
+        }
+      ],
+      "queues_by_region": {
+        "eu-west-2": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ],
+        "us-east-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ],
+        "us-west-1": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ],
+        "us-west-2": [
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Normal",
+            "size": "0"
+          },
+          {
+            "queue": "QUANTUM_TASKS_QUEUE",
+            "priority": "Priority",
+            "size": "0"
+          },
+          {
+            "queue": "JOBS_QUEUE",
+            "size": "0"
+          }
+        ]
+      },
+      "status_by_region": {
+        "eu-west-2": "ONLINE",
+        "us-east-1": "ONLINE",
+        "us-west-1": "ONLINE",
+        "us-west-2": "ONLINE"
+      },
+      "calibration": {
+        "at": null,
+        "missing": "simulators have no calibration"
+      },
+      "capabilities_updated_at": "2022-06-22T10:18:00",
+      "window_open": true,
+      "per_minute_usd": "$0.075"
+    }
+  ],
+  "prices_as_of": "2026-10",
+  "estimate_shots": 1000,
+  "regions_failed": {},
+  "complete": true,
+  "warnings": []
+}
