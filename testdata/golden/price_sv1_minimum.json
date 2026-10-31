@@ -1,0 +1,17 @@
+{
+  "kind": "estimate",
+  "device": "sv1",
+  "device_arn": "arn:aws:braket:::device/quantum-simulator/amazon/sv1",
+  "prices_as_of": "2026-10",
+  "programs": 1,
+  "shots_per_program": 0,
+  "billed_tasks": 1,
+  "total_shots": 0,
+  "billed_ms_per_task": 3000,
+  "minimum": true,
+  "per_minute_usd": "$0.075",
+  "total_usd": "$0.00375",
+  "arithmetic": "3 s minimum x $0.075/min = $0.00375 (at least: the billed duration is not known before the run; pass --duration to estimate it)",
+  "device_name": "Amazon SV1",
+  "warnings": []
+}
