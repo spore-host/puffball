@@ -1,4 +1,4 @@
-.PHONY: all build build-all clean install test lint fmt check check-fmt deps run help vuln gen-docs check-docs check-release-version changelog-fix probe probe-paid fixtures sweep-check
+.PHONY: all build build-all clean install test lint fmt check check-fmt deps run help vuln gen-docs check-docs check-release-version changelog-fix probe probe-paid probe-idempotency fixtures sweep-check
 
 # Variables
 BINARY_NAME=puff
@@ -144,6 +144,11 @@ probe-paid:
 	@[ "$(REAL)" = "1" ] || { echo "probe-paid spends money: G0(c) Braket tasks and G0(e) Cost Explorer requests. Re-run with REAL=1."; exit 1; }
 	$(PROBE) tasks --real --out $(PROBE_OUT)/tasks
 	$(PROBE) costs --real --out $(PROBE_OUT)/costs
+
+## probe-idempotency: #35 ClientToken idempotency, 3 SV1 calls with one token; billable, requires REAL=1
+probe-idempotency:
+	@[ "$(REAL)" = "1" ] || { echo "probe-idempotency spends money: up to 3 SV1 tasks (estimate at most $$0.01125). Re-run with REAL=1."; exit 1; }
+	$(PROBE) idempotency --real --out $(PROBE_OUT)/idempotency
 
 ## fixtures: Refresh testdata/devices/ from every Braket region, scrubbed
 fixtures:

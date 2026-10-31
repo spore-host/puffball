@@ -24,5 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   region list and searches every region. A region that fails, including one
   that fails part-way through a listing, is reported by name instead of being
   left out. It also builds OpenQASM 3, program-set and AHS action JSON.
+- **Internal, no new command yet:** the gate every billable command will go
+  through (#35). It prints each estimate with its price date, stops unless
+  `--real` is given, honours `--dry-run` and `--budget`, and reuses a stored
+  client token on retry. Braket returns the same task for a repeated token
+  (measured), so a retried run can't be billed twice. A test fails the build
+  if anything outside the gate makes a billable call.
 
 [Unreleased]: https://github.com/spore-host/puffball/commits/main

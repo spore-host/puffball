@@ -91,3 +91,17 @@ func Find(b []byte) []string {
 	}
 	return found
 }
+
+// Error wraps err so its message is scrubbed while the cause stays reachable
+// through errors.Is and errors.As. Nil stays nil.
+func Error(err error) error {
+	if err == nil {
+		return nil
+	}
+	return scrubbedError{err}
+}
+
+type scrubbedError struct{ err error }
+
+func (s scrubbedError) Error() string { return string(Scrub([]byte(s.err.Error()))) }
+func (s scrubbedError) Unwrap() error { return s.err }

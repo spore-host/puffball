@@ -1,0 +1,17 @@
+[
+  {
+    "label": "first",
+    "shots": "100",
+    "task_arn": "arn:aws:braket:us-west-1:000000000000:quantum-task/d7708fd2-204e-48ff-bf8f-7da4e6a8e684"
+  },
+  {
+    "label": "same-token-same-input",
+    "shots": "100",
+    "task_arn": "arn:aws:braket:us-west-1:000000000000:quantum-task/d7708fd2-204e-48ff-bf8f-7da4e6a8e684"
+  },
+  {
+    "error": "operation error Braket: CreateQuantumTask, https response error StatusCode: 409, RequestID: 37aa05d4-3213-4bfb-bda7-80db6eb45743, ConflictException: Idempotency token reused across different requests",
+    "label": "same-token-other-shots",
+    "shots": "200"
+  }
+]
