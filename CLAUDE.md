@@ -102,7 +102,17 @@ LICENSE, CHANGELOG, CLAUDE.md, CITATION.cff, code, tests, `testdata/`,
   No other buckets.
 - **Account settings.** Don't change any (cost allocation tag activation
   included). File an issue for Scott.
-- **Regions.** Whatever `SearchDevices` returns; never hard-code the list.
+- **Regions.** Read at run time from the public SSM parameters
+  `/aws/service/global-infrastructure/services/braket/regions`, then
+  `SearchDevices` in each; add any region a returned device ARN names. Never
+  hard-code the list. (`SearchDevices` returns only the calling region's
+  devices, measured in G0, #2.)
+- **Prices.** The embedded table (with its as-of date) is the source for every
+  estimate, so `puff price` works offline. The Price List API is a drift check
+  (`puff doctor`, scheduled CI) that fails on any difference; it is not called
+  to produce an estimate.
+- **Billable commands.** Every billable call goes through `puff` or a `make`
+  target with `REAL=1`, never a hand-run `aws` CLI command.
 
 ## Laws
 
@@ -114,8 +124,9 @@ LICENSE, CHANGELOG, CLAUDE.md, CITATION.cff, code, tests, `testdata/`,
 2. **Estimates are labelled and dated.** Every dollar figure says "estimate"
    and carries the price table's as-of date. Unknown price → error, never a
    guess or zero.
-3. **All regions, always.** List, ledger, budget and sweep cover every region
-   `SearchDevices` reports. A failing region is named in output and exit code.
+3. **All regions, always.** List, ledger, budget and sweep cover every Braket
+   region (the SSM region list, plus any region a device ARN names). A failing
+   region is named in output and exit code.
 4. **The service is the truth.** The ledger is rebuilt from service state; the
    local cache can be deleted without loss.
 5. **Wrap, don't duplicate.** Use Braket's spending limits, program sets, tags
