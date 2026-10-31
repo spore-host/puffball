@@ -2,12 +2,15 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spore-host/libs/i18n"
@@ -68,11 +71,18 @@ Nothing billable happens without --real. The local simulator is the default.`,
 var i18nInitialized = false
 
 // Execute runs the root command and exits with the spore.host exit codes.
+// Ctrl-C and SIGTERM cancel the command's context, which stops anything it
+// started (the local simulator runs in its own process group, so the
+// terminal's signal doesn't reach it directly).
 func Execute() {
 	_ = rootCmd.ParseFlags(os.Args[1:])
 	ensureI18nInitialized()
 
-	os.Exit(run(rootCmd, os.Args[1:], os.Stderr))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	rootCmd.SetContext(ctx)
+	code := run(rootCmd, os.Args[1:], os.Stderr)
+	stop()
+	os.Exit(code)
 }
 
 // run executes root with args and returns the process exit code, writing any

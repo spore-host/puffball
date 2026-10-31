@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -22,7 +23,12 @@ import (
 var (
 	mu    sync.RWMutex
 	flags sporeconfig.Flags
+	loads atomic.Int64
 )
+
+// Loads returns how many times Load has run. Tests use it to show a path
+// (the local rung, A-offline #9) never loads AWS configuration.
+func Loads() int64 { return loads.Load() }
 
 // SetFlags records the CLI flag values for shared-config resolution. Called once
 // from the root command's PersistentPreRun. Empty fields fall through to
@@ -48,6 +54,7 @@ func Resolved() sporeconfig.Config {
 // regionOverride (e.g. a command's own --region) wins over the shared region;
 // pass "" to use the shared region (or the ambient chain if none is set).
 func Load(ctx context.Context, regionOverride string) (aws.Config, error) {
+	loads.Add(1)
 	sc := Resolved()
 
 	region := regionOverride

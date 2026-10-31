@@ -66,3 +66,14 @@ func TestSetFlagsConcurrent(t *testing.T) {
 	}
 	<-done
 }
+
+func TestLoadsCounts(t *testing.T) {
+	t.Cleanup(func() { SetFlags("", "") })
+	before := Loads()
+	if _, err := Load(context.Background(), "us-west-2"); err != nil {
+		t.Fatal(err)
+	}
+	if Loads() != before+1 {
+		t.Errorf("Loads() = %d, want %d", Loads(), before+1)
+	}
+}
