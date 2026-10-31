@@ -1,0 +1,98 @@
+# GoReleaser configuration for spore-host/puffball
+version: 2
+
+builds:
+  - id: puff
+    main: .
+    binary: puff
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/spore-host/puffball/cmd.Version={{.Version}}
+      - -X github.com/spore-host/puffball/cmd.GitCommit={{.Commit}}
+      - -X github.com/spore-host/puffball/cmd.BuildDate={{.Date}}
+    mod_timestamp: '{{ .CommitTimestamp }}'
+
+archives:
+  - id: puffball-archive
+    name_template: 'puffball_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files:
+      - LICENSE*
+
+checksum:
+  name_template: 'checksums.txt'
+
+# Keyless cosign (Sigstore) signature over checksums.txt, which lists the SHA-256
+# of every archive, so one signature authenticates all artifacts. Uses the
+# release workflow's GitHub OIDC identity; no long-lived key. Publishes
+# checksums.txt.bundle; verify with `cosign verify-blob --bundle`.
+signs:
+  - cmd: cosign
+    signature: '${artifact}.bundle'
+    args:
+      - sign-blob
+      - '--bundle=${signature}'
+      - '${artifact}'
+      - '--yes'
+    artifacts: checksum
+    output: true
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - 'typo'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+nfpms:
+  - package_name: puffball
+    vendor: spore.host
+    homepage: https://spore.host
+    maintainer: "spore.host <hello@spore.host>"
+    description: "Amazon Braket job, ledger and provenance CLI"
+    license: Apache-2.0
+    formats:
+      - deb
+      - rpm
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/puffball/copyright
+        type: doc
+    rpm:
+      summary: "Amazon Braket job, ledger and provenance CLI"
+
+# No brews:/scoops: entries yet. The Homebrew formula (spore-host/tap/puffball)
+# is published when Scott decides (#14).
+
+release:
+  github:
+    owner: spore-host
+    name: puffball
+  draft: false
+  prerelease: auto
+  mode: replace
+  name_template: "v{{.Version}}"

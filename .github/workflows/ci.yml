@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Force bundled Node 20 actions (e.g. github-script inside codecov-action) onto
+# Node 24, as the other spore.host repos do (spore-host#345).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.3'
+
+      # Formatting gate. Runs first because it's the cheapest check and the
+      # fastest to act on. `make fmt` rewrites files and always succeeds, so only
+      # `make check-fmt` can fail a build (spawn#484, truffle#122).
+      - name: Format gate
+        run: make check-fmt
+
+      # Changelog gate. CLAUDE.md requires an entry under `## [Unreleased]` in the
+      # SAME PR as any user-facing change (spawn#638, spawn#655). PR-only: it
+      # needs the PR's file list. The FORMAT half is changelog_test.go, which runs
+      # everywhere. Non-test Go source is the proxy for "a user could notice this".
+      - name: Changelog gate
+        if: github.event_name == 'pull_request'
+        env:
+          # Everything from the github context arrives via env, never interpolated
+          # into the script body: `${{ ... }}` inside a `run:` block is a
+          # shell-injection vector and Semgrep's run-shell-injection rule blocks it
+          # (correctly — it caught the first version of this step).
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -uo pipefail
+
+          # Ask GitHub what the PR changed: the checkout is shallow, so git has no
+          # merge base to diff against (lagotto learned this the hard way).
+          if ! changed=$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename' 2>/dev/null); then
+            echo "::warning::Could not list this PR's files; skipping the changelog presence check."
+            exit 0
+          fi
+          if [ -z "$changed" ]; then
+            echo "::warning::The API returned no files for this PR; skipping the changelog presence check."
+            exit 0
+          fi
+
+          # A PR that only touches tests, CI config or generated docs has nothing
+          # user-facing to describe. Non-test Go source is the closest cheap proxy for
+          # "a user could notice this".
+          code=$(echo "$changed" | grep -E '\.go$' | grep -vE '_test\.go$' | grep -vE '^docs-gen/' || true)
+          if [ -z "$code" ]; then
+            echo "No non-test Go changes; changelog entry not required."
+            exit 0
+          fi
+          if echo "$changed" | grep -qx 'CHANGELOG.md'; then
+            echo "CHANGELOG.md updated alongside the code change."
+            exit 0
+          fi
+
+          echo "::error::This PR changes Go source but does not touch CHANGELOG.md."
+          echo
+          echo "Add an entry under '## [Unreleased]' in the right group (Added/Changed/"
+          echo "Deprecated/Removed/Fixed/Security, or Documentation for docs-only)."
+          echo "Describe the user-visible effect, not the implementation."
+          echo
+          echo "Why this is a gate: the release ritual promotes [Unreleased] verbatim, so a"
+          echo "missing entry is not noticed until tag time — when the change has to be"
+          echo "reconstructed from the diff by whoever is cutting the release."
+          echo
+          echo "If this genuinely has no user-visible effect (a pure refactor, a test-only"
+          echo "helper), say so in a '### Changed' entry and add the file anyway — one line"
+          echo "costs less than the archaeology."
+          echo
+          echo "Non-test Go files changed:"
+          echo "$code" | sed 's/^/  /'
+          exit 1
+
+      - name: Build
+        run: go build ./...
+
+      # Coverage counts what ships in the binary. scripts/ holds repo tooling (the
+      # G0 probes, the fixture scrubber): its tests still run, but its live-AWS
+      # code paths are not held to the floor.
+      - name: Test
+        run: |
+          # Guarded: `go test` exits 1 when a pattern matches no packages.
+          if [ -n "$(go list ./scripts/... 2>/dev/null)" ]; then go test -short ./scripts/...; fi
+          go test -short -coverprofile=coverage.out $(go list ./... | grep -v '/scripts/')
+
+      - name: Coverage gate
+        env:
+          # The spore.host floor (CLAUDE.md). puffball starts at it, so it is a
+          # floor from the first commit, not a ratchet toward it.
+          MIN_COVERAGE: '60'
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {sub(/%/,"",$3); print $3}')
+          echo "Total coverage: ${total}% (floor: ${MIN_COVERAGE}%)"
+          awk -v t="$total" -v m="$MIN_COVERAGE" 'BEGIN { exit !(t+0 >= m+0) }' \
+            || { echo "::error::coverage ${total}% is below floor ${MIN_COVERAGE}%"; exit 1; }
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: coverage.out
+          fail_ci_if_error: false
+
+      - name: Vet
+        run: go vet ./...
+
+      # Docs drift gate: the committed command/flag reference (docs-gen/) is
+      # generated from the CLI via `gen-docs`. Regenerate and fail if it's stale,
+      # so a flag/command change can't merge without its reference update.
+      - name: Docs reference drift gate
+        run: make check-docs
+
+
+  # Lint gate. CI runs the same `make lint` contributors do, so the repo's
+  # golangci-lint config (built-in defaults; a .golangci.yml would be picked up)
+  # is the one that gates (lagotto#183, truffle#192).
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.3'
+
+      # Pinned version AND pinned hash: a version with no hash runs a replaced
+      # release asset unnoticed, and the hash lives HERE rather than being read
+      # from the release's checksums.txt, because a file fetched alongside the
+      # download can be replaced alongside it. Cross-checked against
+      # golangci-lint-2.15.0-checksums.txt when pinned. Keep VER in step with
+      # GOLANGCI_LINT_VERSION in the Makefile (cmd/ci_gates_test.go checks).
+      - name: Install golangci-lint
+        run: |
+          VER=2.15.0
+          SHA256=9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+          T="golangci-lint-${VER}-linux-amd64.tar.gz"
+          curl -sSLf -o "/tmp/$T" "https://github.com/golangci/golangci-lint/releases/download/v${VER}/$T"
+          echo "$SHA256  /tmp/$T" | sha256sum -c -
+          tar -xzf "/tmp/$T" -C /usr/local/bin --strip-components=1 "golangci-lint-${VER}-linux-amd64/golangci-lint"
+          golangci-lint version
+
+      - name: Lint gate
+        run: make lint

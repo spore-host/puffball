@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use puffball in your research, please cite it as below."
+title: "puffball: an Amazon Braket job, ledger and provenance CLI"
+abstract: >-
+  puffball (command puff) is the spore.host tool for Amazon Braket. It
+  discovers devices in every Braket region, prices work before it runs,
+  submits OpenQASM 3 and AHS programs, tracks tasks across regions, keeps an
+  account-side spend estimate, wraps QPU spending limits, and writes a
+  provenance record for every hardware result. Nothing billable happens
+  without --real. Part of the spore.host suite.
+type: software
+authors:
+  - given-names: Scott
+    family-names: Friedman
+    orcid: "https://orcid.org/0000-0003-1480-765X"
+    affiliation: "Amazon Web Services"
+repository-code: "https://github.com/spore-host/puffball"
+url: "https://spore.host"
+license: Apache-2.0
+keywords:
+  - quantum computing
+  - Amazon Braket
+  - AWS
+  - research computing
+  - provenance
+  - cost management
