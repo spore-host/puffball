@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	pbraket "github.com/spore-host/puffball/pkg/braket"
 	"github.com/spore-host/puffball/pkg/gate"
 	"github.com/spore-host/puffball/pkg/testutil"
 )
@@ -72,6 +74,13 @@ func TestAGateEveryCommandWithoutReal(t *testing.T) {
 		o.Creators = testutil.FailingCreators(t)
 		o.Tokens = &gate.MemTokens{}
 		return gate.New(o)
+	}
+
+	// Read-only commands get the G0 fixtures, so the harness never calls AWS.
+	origFactory := newFactory
+	t.Cleanup(func() { newFactory = origFactory })
+	newFactory = func(context.Context) (pbraket.Factory, error) {
+		return testutil.DevicesFactory(t, "../testdata/devices"), nil
 	}
 
 	leaves := leafCommands(rootCmd)

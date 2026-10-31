@@ -28,9 +28,9 @@ func runPuff(t *testing.T, args ...string) (string, string, int) {
 
 func fixedNow(t *testing.T, at time.Time) {
 	t.Helper()
-	orig := priceNow
-	priceNow = func() time.Time { return at }
-	t.Cleanup(func() { priceNow = orig })
+	orig := clockNow
+	clockNow = func() time.Time { return at }
+	t.Cleanup(func() { clockNow = orig })
 }
 
 func TestPriceHuman(t *testing.T) {

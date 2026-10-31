@@ -18,8 +18,8 @@ var priceFlags struct {
 	duration time.Duration
 }
 
-// priceNow is the clock price staleness is measured against; tests replace it.
-var priceNow = time.Now
+// clockNow is the clock for staleness, windows and calibration ages; tests replace it.
+var clockNow = time.Now
 
 var priceCmd = &cobra.Command{
 	Use:   "price <device>",
@@ -56,7 +56,7 @@ SV1, DM1:   per minute of billed duration, with a 3 s minimum per task. The
 		if err != nil {
 			return usageError{err}
 		}
-		warning := tb.StaleWarning(priceNow())
+		warning := tb.StaleWarning(clockNow())
 		if jsonOutput {
 			return writePriceJSON(cmd.OutOrStdout(), d, e, warning)
 		}

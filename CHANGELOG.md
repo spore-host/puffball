@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   labelled an estimate with the price table's date (2026-10), and a warning
   appears once the table is more than 60 days old. An unpriced device is an
   error. `--json` is supported.
+- **`puff devices`** lists every Amazon Braket device in every region (from the
+  public SSM region list): status, qubits, paradigm, queue depth, whether an
+  execution window is open (or when the next one opens), calibration age, and
+  the estimated cost of one 1,000-shot task. Qubit counts and status come from
+  the service. Devices whose capabilities carry no calibration time (IQM,
+  QuEra) show "none", with no substitute. `--all` adds retired devices, with
+  their replacement where one is known; `--paradigm gate|analog` filters. A
+  region that fails is named and the command exits 1, but the rest is still
+  listed. `--json` is supported.
 
 ### Changed
 - **Repo tooling only, no change to `puff`:** G0 API probes (`make probe`,
