@@ -1,0 +1,11 @@
+{
+  "setup": {"ahs_register": {"sites": [["0.0", "0.0"], ["0.0000055", "0.0"]], "filling": [1, 1]}},
+  "hamiltonian": {
+    "drivingFields": [{
+      "amplitude": {"time_series": {"values": ["0.0", "15700000.0", "15700000.0", "0.0"], "times": ["0.0", "0.000001", "0.000003", "0.000004"]}, "pattern": "uniform"},
+      "phase": {"time_series": {"values": ["0.0", "0.0"], "times": ["0.0", "0.000004"]}, "pattern": "uniform"},
+      "detuning": {"time_series": {"values": ["0.0", "0.0"], "times": ["0.0", "0.000004"]}, "pattern": "uniform"}
+    }],
+    "localDetuning": []
+  }
+}
