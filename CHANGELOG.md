@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their replacement where one is known; `--paradigm gate|analog` filters. A
   region that fails is named and the command exits 1, but the rest is still
   listed. `--json` is supported.
+- **`puff run <file.qasm>`** runs an OpenQASM 3 program on the Braket default
+  simulator on this machine, the local rung. It makes no AWS call, needs no
+  credentials, and costs nothing. It runs the pinned
+  `amazon-braket-default-simulator` 1.41.1 through `uv`, which fetches it once
+  and then caches it. `--offline` uses only uv's cache. Prints counts, or
+  `--json`. Running on Amazon Braket comes later.
 
 ### Changed
 - **Repo tooling only, no change to `puff`:** G0 API probes (`make probe`,
