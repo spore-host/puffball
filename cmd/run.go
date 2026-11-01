@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -17,8 +18,15 @@ import (
 )
 
 var runFlags struct {
-	shots   int64
-	offline bool
+	shots        int64
+	offline      bool
+	device       string
+	deviceRegion string
+	duration     time.Duration
+	project      string
+	runID        string
+	tags         []string
+	gate         gateFlags
 }
 
 // localUV is the uv binary the local rung uses; "" finds it on PATH. Tests
@@ -26,30 +34,53 @@ var runFlags struct {
 var localUV = ""
 
 var runCmd = &cobra.Command{
-	Use:   "run <file.qasm>",
-	Short: "Run an OpenQASM 3 program on the local simulator",
-	Long: `Run an OpenQASM 3 program on the Braket default simulator, on this machine.
+	Use:   "run <file>",
+	Short: "Run a program on the local simulator, or on Amazon Braket with --device",
+	Long: `Run a program.
 
-This is the local rung: no AWS call, no credentials, not billable. It runs
-the pinned amazon-braket-default-simulator on Python 3.14 through uv
-(fetched once, then cached). With --offline, uv uses only its cache and
-never the network.
+Without --device: the local rung. An OpenQASM 3 (.qasm) program runs on the
+Braket default simulator on this machine: no AWS call, no credentials, not
+billable. It runs the pinned amazon-braket-default-simulator on Python 3.14
+through uv (fetched once, then cached). --offline uses only uv's cache.
 
-Running on Amazon Braket (--device, --real) arrives with #39.`,
+With --device: Amazon Braket. The device is found in the live service, the
+run is priced, and the estimate is printed. Nothing is submitted without
+--real. With --real it is submitted to the device's region, with results in
+that region's default bucket (amazon-braket-<region>-<account>, created on a
+--real run if it doesn't exist, and reported), under puffball/<run-id>/.
+Every task is tagged puffball:project, puffball:rung, puffball:run-id and
+puffball:est-usd. Repeating a run id retries the same request; it never
+creates a second task.
+
+SV1 and DM1 bill run time, which isn't known in advance: their estimate is the
+minimum, and --budget needs --duration as an upper bound.`,
 	Example: `  puff run bell.qasm --shots 1000
-  puff run bell.qasm --shots 1000 --offline --json`,
+  puff run bell.qasm --device cepheus --shots 100            # print the estimate, submit nothing
+  puff run bell.qasm --device cepheus --shots 100 --real
+  puff run bell.qasm --device sv1 --shots 100 --real --project fmo --tag owner=me`,
 	Args: usageArgs(cobra.ExactArgs(1)),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		program := args[0]
-		if ext := strings.ToLower(filepath.Ext(program)); ext != ".qasm" {
-			return usageErrorf("%s: the local simulator runs OpenQASM 3 (.qasm) programs", program)
-		}
 		if runFlags.shots < 1 {
 			return usageErrorf("--shots must be at least 1")
+		}
+		if runFlags.device == "" {
+			for _, f := range []string{"real", "dry-run", "budget", "device-region", "duration", "project", "run-id", "tag"} {
+				if cmd.Flags().Changed(f) {
+					return usageErrorf("--%s applies only with --device (the local simulator is not billable)", f)
+				}
+			}
+		}
+		if ext := strings.ToLower(filepath.Ext(program)); runFlags.device == "" && ext != ".qasm" {
+			return usageErrorf("%s: the local simulator runs OpenQASM 3 (.qasm) programs", program)
 		}
 		src, err := os.ReadFile(program)
 		if err != nil {
 			return fmt.Errorf("program: %w", err)
+		}
+		if runFlags.device != "" {
+			s := sha256.Sum256(src)
+			return runOnBraket(cmd, program, src, hex.EncodeToString(s[:]))
 		}
 		abs, err := filepath.Abs(program)
 		if err != nil {
@@ -111,6 +142,14 @@ func writeRunJSON(cmd *cobra.Command, v runJSON) error {
 
 func init() {
 	runCmd.Flags().Int64Var(&runFlags.shots, "shots", 1000, "Shots")
-	runCmd.Flags().BoolVar(&runFlags.offline, "offline", false, "Use only uv's cache; never the network")
+	runCmd.Flags().BoolVar(&runFlags.offline, "offline", false, "Local: use only uv's cache; never the network")
+	runCmd.Flags().StringVar(&runFlags.device, "device", "", "Run on this Amazon Braket device (alias, name or ARN) instead of locally")
+	runCmd.Flags().StringVar(&runFlags.deviceRegion, "device-region", "", "For a simulator offered in several regions, submit in this one")
+	runCmd.Flags().DurationVar(&runFlags.duration, "duration", 0, "SV1/DM1: expected billed duration, for the estimate and --budget")
+	runCmd.Flags().StringVar(&runFlags.project, "project", "default", "Value of the puffball:project tag")
+	runCmd.Flags().StringVar(&runFlags.runID, "run-id", "", "Run id (default: a new one); repeat one to retry without creating a second task")
+	runCmd.Flags().StringArrayVar(&runFlags.tags, "tag", nil, "Extra task tag key=value (repeatable)")
+	addGateFlags(runCmd, &runFlags.gate)
+	runFlags.gate.pinned = pinnedTags
 	rootCmd.AddCommand(runCmd)
 }

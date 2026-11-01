@@ -19,13 +19,22 @@ type TokenRecord struct {
 	Region      string `json:"region"`
 	ClientToken string `json:"client_token"`
 	TaskArn     string `json:"task_arn,omitempty"`
-	// InputHash is a SHA-256 of the request without its client token. The
-	// service refuses a token reused with different input (409
-	// ConflictException, measured in #35); the gate refuses it first.
+	// InputHash is a SHA-256 of the request's identity (Request): everything
+	// but the client token and the pinned tags. The service refuses a token
+	// reused with different input (409 ConflictException, measured in #35);
+	// the gate refuses it first, naming the fields that differ.
 	InputHash string `json:"input_hash"`
+	// Request is the identity InputHash covers, kept so a mismatch can name
+	// the field that differs.
+	Request *RequestIdentity `json:"request,omitempty"`
+	// Pinned are the derived tags (an estimate, a price date) as first sent.
+	// A retry resends these values, so its request is byte-for-byte the
+	// first one even if the estimate would now come out differently.
+	Pinned map[string]string `json:"pinned_tags,omitempty"`
 }
 
-// TokenStore keeps TokenRecords across runs.
+// TokenStore keeps TokenRecords across runs. A store may also implement
+// Check() error, which Permit.Check calls before anything else is done.
 type TokenStore interface {
 	// Claim stores r if no record exists for r.Key, and returns the record
 	// that is now stored: r, or the existing one unchanged. It is atomic
@@ -123,6 +132,20 @@ func (f FileTokens) syncDir() error {
 		return fmt.Errorf("sync token dir: %w", err)
 	}
 	return nil
+}
+
+// Check verifies the store can be written, so a --real run fails before it
+// creates anything (a results bucket) rather than at the claim.
+func (f FileTokens) Check() error {
+	if err := os.MkdirAll(f.Dir, 0o700); err != nil {
+		return fmt.Errorf("client token dir %s can't be created (%w); set XDG_STATE_HOME to a writable directory", f.Dir, err)
+	}
+	tmp, err := os.CreateTemp(f.Dir, ".tok-check-*")
+	if err != nil {
+		return fmt.Errorf("client token dir %s is not writable (%w); set XDG_STATE_HOME to a writable directory", f.Dir, err)
+	}
+	_ = tmp.Close()
+	return os.Remove(tmp.Name())
 }
 
 // staleTemp is how old a leftover temp file (from a crash mid-write) must be
