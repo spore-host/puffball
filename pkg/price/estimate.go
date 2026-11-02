@@ -212,3 +212,43 @@ func (t *Table) simulator(d Device, req Request, e *Estimate) error {
 	}
 	return nil
 }
+
+// Task prices one task the service has already accepted, from its metadata:
+// shots is the task's shots (for a program set, the total across its
+// programs, which pays one per-task fee). For a simulator, duration is the
+// billed duration the service reported, and known says whether there was
+// one; without it the estimate is the minimum charge. The shots range isn't
+// checked: the service took the task.
+func (t *Table) Task(d Device, shots int64, duration time.Duration, known bool) (Estimate, error) {
+	if shots < 0 {
+		return Estimate{}, errors.New("negative shots in task metadata")
+	}
+	e := Estimate{Kind: Kind, Device: d.Alias, DeviceArn: d.Arn, PricesAsOf: t.AsOf,
+		Programs: 1, Shots: shots, TotalShots: shots}
+	var err error
+	if d.Simulator() {
+		if known && duration <= 0 {
+			duration = time.Nanosecond // ran in under 1 ms: billed as the minimum
+		}
+		if !known {
+			duration = 0
+		}
+		err = t.simulator(d, Request{Programs: 1, Shots: shots, Duration: duration}, &e)
+		if err == nil && e.Minimum {
+			e.Arithmetic = fmt.Sprintf("%d s minimum x %s/min = %s (at least)", d.MinimumSeconds, e.PerMinute, e.Total)
+		}
+	} else {
+		err = t.qpu(d, Request{Programs: 1, Shots: shots}, &e)
+	}
+	if err != nil {
+		return Estimate{}, err
+	}
+	e.TotalUSD = e.Total.String()
+	if e.PerTask != 0 || e.PerShot != 0 {
+		e.PerTaskUSD, e.PerShotUSD = e.PerTask.String(), e.PerShot.String()
+	}
+	if e.PerMinute != 0 {
+		e.PerMinuteUSD = e.PerMinute.String()
+	}
+	return e, nil
+}

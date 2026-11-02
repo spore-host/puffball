@@ -75,6 +75,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as such. `--json` is supported.
 - Account IDs in task ARNs, results locations and service error text are shown
   as `<account>` in all four commands.
+- **`puff ledger`** estimates spend on quantum tasks in every Braket region:
+  all tasks, not only puff's. It is rebuilt from the service each time.
+  - **Pricing:** each task is priced with the embedded table. On QPUs that is
+    the per-task fee plus shots × the per-shot price, with one fee per program
+    set. SV1 and DM1 are billed for the duration recorded in the task's
+    `results.json` in S3, with the 3 s minimum; "at least" marks a minimum
+    charge where no duration was read.
+  - **Grouping:** `--by project|device|rung|day`, with untagged tasks under
+    `untagged`. `--since` defaults to 30 days (`0` for all). `--tasks` lists
+    each task with its arithmetic.
+  - **Totals:** completed tasks make the total. Pending tasks (created,
+    queued, running, cancelling) are shown in their own column and not
+    added in until they finish. Cancelled and failed tasks are listed at $0,
+    whatever their device: Braket adds nothing to an account's current
+    spend for them (Amazon Braket Developer Guide, "Cost tracking and
+    saving").
+  - **Exit 1:** for a task with no figure (a device the table doesn't price,
+    or a QPU task the service reports no shots for; each is named), or for a
+    region that couldn't be searched. In that case the output is headed
+    `INCOMPLETE`, the row reads `TOTAL (incomplete)`, and the other regions
+    are still shown.
+  - **Cache:** durations already read from S3 are cached under
+    `$XDG_STATE_HOME/puffball/ledger`, keyed by region and task ID (no account
+    ID). Deleting the cache loses nothing, and `--no-cache` skips it.
+  - Every figure is labelled an estimate with the price date. `--json` is
+    supported.
 
 ### Changed
 - **Repo tooling only, no change to `puff`:** G0 API probes (`make probe`,

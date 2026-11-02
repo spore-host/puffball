@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -142,4 +143,36 @@ func (a AWS) Create(ctx context.Context, region, bucket string) error {
 		return fmt.Errorf("CreateBucket: %w", err)
 	}
 	return nil
+}
+
+// Reader reads result objects, such as a task's results.json.
+type Reader interface {
+	// Read returns bucket/key from region, refusing a bucket account doesn't
+	// own and an object larger than limit bytes ([ErrTooLarge]).
+	Read(ctx context.Context, region, bucket, key, account string, limit int64) ([]byte, error)
+}
+
+// ErrTooLarge is returned by Read for an object over its limit.
+var ErrTooLarge = errors.New("result object is larger than puff reads")
+
+// Read calls S3 GetObject with ExpectedBucketOwner, so an object in a
+// same-named bucket of another account is never read (S3 answers 403).
+func (a AWS) Read(ctx context.Context, region, bucket, key, account string, limit int64) ([]byte, error) {
+	cfg, err := a.config(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+	out, err := a.s3(cfg).GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key), ExpectedBucketOwner: aws.String(account)})
+	if err != nil {
+		return nil, fmt.Errorf("GetObject: %w", err)
+	}
+	defer func() { _ = out.Body.Close() }()
+	b, err := io.ReadAll(io.LimitReader(out.Body, limit+1))
+	if err != nil {
+		return nil, fmt.Errorf("GetObject: read body: %w", err)
+	}
+	if int64(len(b)) > limit {
+		return nil, fmt.Errorf("%w (%d bytes)", ErrTooLarge, limit)
+	}
+	return b, nil
 }
