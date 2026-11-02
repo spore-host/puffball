@@ -115,3 +115,30 @@ func (c *RecordingCreator) create(region string, in *braket.CreateQuantumTaskInp
 	}
 	return &braket.CreateQuantumTaskOutput{QuantumTaskArn: aws.String(arn)}, nil
 }
+
+// FakeCanceller records CancelQuantumTask calls and returns Status, or Err.
+type FakeCanceller struct {
+	mu     sync.Mutex
+	Calls  []braket.CancelQuantumTaskInput
+	Status types.CancellationStatus
+	Err    error
+}
+
+// Factory returns a Cancellers func handing out c for every region.
+func (c *FakeCanceller) Factory() func(context.Context, string) (pbraket.Canceller, error) {
+	return func(context.Context, string) (pbraket.Canceller, error) { return c, nil }
+}
+
+// CancelQuantumTask records the call.
+func (c *FakeCanceller) CancelQuantumTask(_ context.Context, in *braket.CancelQuantumTaskInput, _ ...func(*braket.Options)) (*braket.CancelQuantumTaskOutput, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.Calls = append(c.Calls, *in)
+	if c.Err != nil {
+		return nil, c.Err
+	}
+	if in.ClientToken == nil || in.QuantumTaskArn == nil {
+		return nil, errors.New("missing required field, CancelQuantumTaskInput")
+	}
+	return &braket.CancelQuantumTaskOutput{QuantumTaskArn: in.QuantumTaskArn, CancellationStatus: c.Status}, nil
+}

@@ -2,8 +2,11 @@ package braket
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -148,4 +151,83 @@ func MatchTags(tags, want map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// Terminal reports whether a task status is final.
+func Terminal(s types.QuantumTaskStatus) bool {
+	return s == types.QuantumTaskStatusCompleted || s == types.QuantumTaskStatusFailed || s == types.QuantumTaskStatusCancelled
+}
+
+// GetTask reads a task, with its queue position, in the region its ARN names.
+func GetTask(ctx context.Context, f Factory, arn string) (*braket.GetQuantumTaskOutput, error) {
+	region := RegionOf(arn)
+	if region == "" {
+		return nil, fmt.Errorf("%q is not a quantum task ARN", arn)
+	}
+	c, err := f.Braket(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+	out, err := c.GetQuantumTask(ctx, &braket.GetQuantumTaskInput{
+		QuantumTaskArn:           aws.String(arn),
+		AdditionalAttributeNames: []types.QuantumTaskAdditionalAttributeName{types.QuantumTaskAdditionalAttributeNameQueueInfo},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("GetQuantumTask: %w", err)
+	}
+	return out, nil
+}
+
+// TaskARN builds a quantum task ARN from its parts.
+func TaskARN(region, account, id string) string {
+	return fmt.Sprintf("arn:aws:braket:%s:%s:quantum-task/%s", region, account, id)
+}
+
+// taskNotHere is the service's answer when a task ARN names a task that
+// doesn't exist in the region asked: measured 2026-11-01 for both a random
+// UUID and a real task asked about in another region, GetQuantumTask returns
+// ValidationException "quantumTaskArn is invalid." (never
+// ResourceNotFoundException).
+const taskNotHere = "quantumTaskArn is invalid"
+
+// IsNotFound reports whether err is the service's "no such task here".
+// Callers build ARNs only from IDs that pass TaskIDPattern, so this can't
+// hide a malformed ARN.
+func IsNotFound(err error) bool {
+	var ve *types.ValidationException
+	if errors.As(err, &ve) && strings.Contains(aws.ToString(ve.Message), taskNotHere) {
+		return true
+	}
+	var nf *types.ResourceNotFoundException
+	return errors.As(err, &nf)
+}
+
+// TaskIDPattern is a quantum task ID: a lowercase UUID, as every task ARN in
+// the G0 fixtures ends with.
+var TaskIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// FindTask finds a task by its ID in any of regions, for an account: an ID
+// carries no region, so each region is asked. It returns the first match.
+// If no region has it and some region failed, the error is an
+// *IncompleteError, since the task may be in a region that didn't answer.
+func FindTask(ctx context.Context, f Factory, regions []string, account, id string) (*braket.GetQuantumTaskOutput, error) {
+	if !TaskIDPattern.MatchString(id) {
+		return nil, fmt.Errorf("%q is not a task ID (a UUID) or a task ARN", id)
+	}
+	results := FanOut(ctx, regions, func(ctx context.Context, region string) (*braket.GetQuantumTaskOutput, error) {
+		out, err := GetTask(ctx, f, TaskARN(region, account, id))
+		if err != nil && IsNotFound(err) {
+			return nil, nil
+		}
+		return out, err
+	})
+	for _, r := range results {
+		if r.Err == nil && r.Value != nil {
+			return r.Value, nil
+		}
+	}
+	if err := Incomplete("GetQuantumTask", results); err != nil {
+		return nil, err
+	}
+	return nil, fmt.Errorf("task %s was not found in any region (%s)", id, strings.Join(regions, ", "))
 }

@@ -24,7 +24,10 @@ const (
 	ceSDK     = "github.com/aws/aws-sdk-go-v2/service/costexplorer"
 )
 
-var billableMethods = map[string]bool{"CreateQuantumTask": true, "CreateJob": true}
+// billableMethods are law 1's billable operations, plus the cancel calls:
+// not billable, but they change account state, so they too live only in
+// pkg/gate.
+var billableMethods = map[string]bool{"CreateQuantumTask": true, "CreateJob": true, "CancelQuantumTask": true, "CancelJob": true}
 
 func under(path string, dirs ...string) bool {
 	for _, d := range dirs {

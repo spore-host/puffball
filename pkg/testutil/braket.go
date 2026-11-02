@@ -45,6 +45,11 @@ type FakeBraket struct {
 
 	Err       error // returned by every call (FailAfter == 0) or after FailAfter pages
 	FailAfter int
+	// FailOn limits Err (and the FailAfter count) to one operation, such as
+	// "SearchQuantumTasks"; "" means every operation.
+	FailOn string
+	// Injected reports whether Err was returned at least once.
+	Injected bool
 
 	mu       sync.Mutex
 	pages    int
@@ -58,10 +63,11 @@ func (f *FakeBraket) record(call string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, call)
-	if f.Err == nil {
+	if f.Err == nil || (f.FailOn != "" && call != f.FailOn) {
 		return nil
 	}
 	if f.FailAfter == 0 || f.pages >= f.FailAfter {
+		f.Injected = true
 		return f.Err
 	}
 	f.pages++
@@ -205,7 +211,9 @@ func (f *FakeBraket) GetQuantumTask(_ context.Context, in *braket.GetQuantumTask
 	if t, ok := f.TaskDetail[aws.ToString(in.QuantumTaskArn)]; ok {
 		return t, nil
 	}
-	return nil, fmt.Errorf("ResourceNotFoundException: task %s", aws.ToString(in.QuantumTaskArn))
+	// What the service returns for a task not in this region (measured
+	// 2026-11-01; see braket.IsNotFound).
+	return nil, &types.ValidationException{Message: aws.String("quantumTaskArn is invalid.")}
 }
 
 func keep(ts []types.QuantumTaskSummary, ok func(types.QuantumTaskSummary) bool) []types.QuantumTaskSummary {
