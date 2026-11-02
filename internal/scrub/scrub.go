@@ -50,12 +50,28 @@ func freeRuns(b []byte) [][2]int {
 		}
 		mantissa := i > 0 && b[i-1] == '.'
 		exponent := j < len(b) && (b[j] == 'e' || b[j] == 'E')
-		if j-i == 12 && !mantissa && !exponent {
+		if j-i == 12 && !mantissa && !exponent && !uuidTail(b, i, j) {
 			runs = append(runs, [2]int{i, j})
 		}
 		i = j
 	}
 	return runs
+}
+
+// uuidPrefix is the 8-4-4-4- part of a UUID.
+var uuidPrefix = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-$`)
+
+// uuidTail reports whether the digit run b[i:j] is a UUID's last group (a
+// task or job ID whose final 12 hex characters happen to be digits, about 1
+// UUID in 280), not an account ID.
+func uuidTail(b []byte, i, j int) bool {
+	isHex := func(c byte) bool {
+		return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
+	}
+	if i < 24 || (i > 24 && isHex(b[i-25])) || (j < len(b) && isHex(b[j])) {
+		return false
+	}
+	return uuidPrefix.Match(b[i-24 : i])
 }
 
 // Scrub returns b with account IDs and IAM principal names replaced.

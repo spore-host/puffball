@@ -22,6 +22,10 @@ func TestScrub(t *testing.T) {
 		{"float fraction untouched", `0.998565742563,`, `0.998565742563,`},
 		{"13 digits untouched", `"t": 1761321273107`, `"t": 1761321273107`},
 		{"two adjacent", `123456789012 210987654321`, `000000000000 000000000000`},
+		{"uuid with an all-digit tail untouched", `s3://b/puffball/r/d53c0e86-bf89-4ce0-9012-604162481234/`, `s3://b/puffball/r/d53c0e86-bf89-4ce0-9012-604162481234/`},
+		{"uuid tail in a task arn", `arn:aws:braket:us-west-1:123456789012:quantum-task/00000000-0000-4000-8000-123456789012`, `arn:aws:braket:us-west-1:000000000000:quantum-task/00000000-0000-4000-8000-123456789012`},
+		{"account after a non-uuid dash", `role-123456789012 x-1234-1234-1234-123456789012`, `role-000000000000 x-1234-1234-1234-000000000000`},
+		{"longer hex before the prefix is not a uuid", `0d53c0e86-bf89-4ce0-9012-604162481234`, `0d53c0e86-bf89-4ce0-9012-000000000000`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
