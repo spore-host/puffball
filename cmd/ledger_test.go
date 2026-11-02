@@ -57,7 +57,7 @@ func TestLedger(t *testing.T) {
 		"$0.30 + 100 x $0.000425 = $0.3425",
 		"$0.30 + 200 x $0.000425 = $0.385",
 		"2ms billed as the 3 s minimum",
-		"doesn't say whether cancelled or failed tasks are billed",
+		"Cancelled and failed tasks are shown at $0",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("ledger lacks %q:\n%s", want, out)

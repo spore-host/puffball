@@ -135,7 +135,7 @@ func TestStandings(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := byID(l)
-	if m[bellID].Standing != ledger.IfBilled || m[psID].Standing != ledger.Pending || m[sv1ID].Standing != ledger.Pending {
+	if m[bellID].Standing != ledger.NotCharged || m[psID].Standing != ledger.Pending || m[sv1ID].Standing != ledger.Pending {
 		t.Errorf("standings %s %s %s", m[bellID].Standing, m[psID].Standing, m[sv1ID].Standing)
 	}
 	if sv := m[sv1ID]; !sv.Estimate.Minimum || !strings.Contains(sv.Note, "until the task completes") || len(r.reads) != 0 {
@@ -153,14 +153,14 @@ func TestStandings(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Nothing completed and priced; each standing summed on its own.
-	if total.Completed.Tasks != 0 || total.IfBilled.USD != "$0.3425" || total.Pending.USD != "$0.38875" || !total.Pending.AtLeast || total.Unpriced != 1 {
+	if total.Completed.Tasks != 0 || total.NotCharged.USD != "$0.00" || total.NotCharged.Tasks != 1 || total.Pending.USD != "$0.38875" || !total.Pending.AtLeast || total.Unpriced != 1 {
 		t.Errorf("total %+v", total)
 	}
 	if total.Tasks() != 4 || total.Shots() != 600 || total.UnpricedShots != 200 {
 		t.Errorf("total counts %d tasks, %d shots", total.Tasks(), total.Shots())
 	}
-	if !strings.Contains(m[bellID].Estimate.Arithmetic, "$0.3425") || m[bellID].Note != "" {
-		t.Errorf("cancelled QPU line: %+v", m[bellID])
+	if b := m[bellID]; b.Estimate.USD != "$0.00" || !strings.Contains(b.Estimate.Arithmetic, "$0: cancelled; "+ledger.ZeroSource) || b.Estimate.Kind != "estimate" || b.Estimate.PricesAsOf == "" {
+		t.Errorf("cancelled QPU line: %+v %+v", b, b.Estimate)
 	}
 	if len(groups) != 2 || groups[0].Key != "puffball-g0" || groups[1].Key != ledger.Untagged {
 		t.Errorf("groups %+v", groups)
@@ -330,5 +330,29 @@ func TestGroupUnknownDay(t *testing.T) {
 	groups, _, _ := l.Group("day")
 	if groups[len(groups)-1].Key != "unknown" {
 		t.Errorf("groups %+v", groups)
+	}
+}
+
+// A cancelled or failed task is $0 whatever its device, so one on a device
+// the table doesn't price isn't unpriced; a cancelling task is still pending.
+func TestNotChargedBeforePrice(t *testing.T) {
+	tasks := g0Tasks(t)
+	tasks[0].Summary.DeviceArn = aws.String("arn:aws:braket:::device/quantum-simulator/amazon/tn1")
+	tasks[0].Summary.Status = types.QuantumTaskStatusFailed
+	tasks[1].Summary.Status = types.QuantumTaskStatusCancelling
+	l, err := ledger.Build(context.Background(), tasks, opts(t, &fakeReader{}, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := byID(l)
+	id0 := aws.ToString(tasks[0].Summary.QuantumTaskArn)
+	id0 = id0[strings.LastIndex(id0, "/")+1:]
+	id1 := aws.ToString(tasks[1].Summary.QuantumTaskArn)
+	id1 = id1[strings.LastIndex(id1, "/")+1:]
+	if m[id0].Standing != ledger.NotCharged || m[id0].Estimate.USD != "$0.00" || len(l.Unpriced()) != 0 {
+		t.Errorf("failed tn1 task: %+v; unpriced %v", m[id0], l.Unpriced())
+	}
+	if m[id1].Standing != ledger.Pending {
+		t.Errorf("cancelling task: %s", m[id1].Standing)
 	}
 }

@@ -85,9 +85,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Grouping:** `--by project|device|rung|day`, with untagged tasks under
     `untagged`. `--since` defaults to 30 days (`0` for all). `--tasks` lists
     each task with its arithmetic.
-  - **Totals:** only completed tasks count. Pending tasks, and cancelled or
-    failed ones (the pricing page doesn't say whether those are billed), are
-    shown in their own columns and never added in.
+  - **Totals:** completed tasks make the total. Pending tasks (created,
+    queued, running, cancelling) are shown in their own column and not
+    added in until they finish. Cancelled and failed tasks are listed at $0,
+    whatever their device: Braket adds nothing to an account's current
+    spend for them (Amazon Braket Developer Guide, "Cost tracking and
+    saving").
   - **Exit 1:** for a task with no figure (a device the table doesn't price,
     or a QPU task the service reports no shots for; each is named), or for a
     region that couldn't be searched. In that case the output is headed

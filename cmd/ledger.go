@@ -33,7 +33,8 @@ var ledgerFlags struct {
 // aren't.
 var ledgerNotes = []string{
 	"Estimates are the pricing-page arithmetic, not a bill. Billed figures come from Cost Explorer, which puff doesn't call yet (#16).",
-	"Pending (created, queued, running) and if-billed (cancelled, failed) tasks are kept out of the total. The pricing page doesn't say whether cancelled or failed tasks are billed.",
+	"Pending tasks (created, queued, running, cancelling) are kept out of the total until they finish.",
+	"Cancelled and failed tasks are shown at $0: Braket adds nothing to current spend for them (Developer Guide, Cost tracking and saving). Cost Explorer reconciliation (#16) will check this against the bill.",
 	"Simulator tasks are billed for their duration, read from each task's results.json in S3; \"at least\" marks a minimum charge where none was read.",
 	"Not included: Hybrid Jobs instances, notebook instances, Braket Direct reservations, S3 storage.",
 }
@@ -47,8 +48,10 @@ priced from its metadata with the embedded price table (QPU: per-task fee plus
 shots x per-shot, one fee per program set; SV1 and DM1: the billed duration in
 the task's results.json, with the 3 s minimum).
 
-Completed tasks make the total. Pending tasks and cancelled or failed ones
-are shown apart and never added in. A task on a device the price table
+Completed tasks make the total. Pending tasks are shown apart and never added
+in. Cancelled and failed tasks are shown at $0: Braket adds nothing to an
+account's current spend for them (Amazon Braket Developer Guide, Cost
+tracking and saving). A task on a device the price table
 doesn't price is named, with no figure, and the command exits 1. So does a
 region that couldn't be searched, after the rest is shown.
 
@@ -171,9 +174,9 @@ func writeLedger(w io.Writer, l *ledger.Ledger, groups []ledger.Group, total led
 	}
 	_, _ = fmt.Fprintln(w)
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(tw, "%s\tTASKS\tSHOTS\tESTIMATE\tPENDING\tIF BILLED\tUNPRICED\n", strings.ToUpper(ledgerFlags.by))
+	_, _ = fmt.Fprintf(tw, "%s\tTASKS\tSHOTS\tESTIMATE\tPENDING\tCANCELLED/FAILED\tUNPRICED\n", strings.ToUpper(ledgerFlags.by))
 	row := func(g ledger.Group) {
-		_, _ = fmt.Fprintf(tw, "%s\t%d\t%d\t%s\t%s\t%s\t%s\n", g.Key, g.Tasks(), g.Shots(), money(g.Completed), money(g.Pending), money(g.IfBilled), count(g.Unpriced))
+		_, _ = fmt.Fprintf(tw, "%s\t%d\t%d\t%s\t%s\t%s\t%s\n", g.Key, g.Tasks(), g.Shots(), money(g.Completed), money(g.Pending), zero(g.NotCharged), count(g.Unpriced))
 	}
 	for _, g := range groups {
 		row(g)
@@ -203,6 +206,14 @@ func writeLedger(w io.Writer, l *ledger.Ledger, groups []ledger.Group, total led
 	for _, n := range ledgerNotes {
 		_, _ = fmt.Fprintln(w, "- "+n)
 	}
+}
+
+// zero shows cancelled and failed tasks: their count, at $0.
+func zero(s ledger.Sum) string {
+	if s.Tasks == 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%d at %s", s.Tasks, s.USD)
 }
 
 func count(n int) string {

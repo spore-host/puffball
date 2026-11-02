@@ -8,10 +8,10 @@
 // different standing are never summed together:
 //
 //   - completed tasks: the estimate;
-//   - created, queued and running tasks: pending, kept apart;
-//   - cancelled, cancelling and failed tasks: what they would cost if billed.
-//     The pricing page doesn't say whether they are, so they stay out of the
-//     total;
+//   - created, queued, running and cancelling tasks: pending, kept apart;
+//   - cancelled and failed tasks: $0, shown so they can be seen. Braket's own
+//     accounting adds nothing to an account's current spend for a task that
+//     ends CANCELLED or FAILED ([ZeroSource]); only COMPLETED adds;
 //   - tasks on a device the price table doesn't price: unpriced, named, with
 //     no figure (law 2).
 //
@@ -53,11 +53,19 @@ type Standing string
 // The standings a line can have. Figures of different standings are never
 // summed together.
 const (
-	Completed Standing = "completed"
-	Pending   Standing = "pending"
-	IfBilled  Standing = "if-billed"
-	Unpriced  Standing = "unpriced"
+	Completed  Standing = "completed"
+	Pending    Standing = "pending"
+	NotCharged Standing = "not-charged"
+	Unpriced   Standing = "unpriced"
 )
+
+// ZeroSource is why a cancelled or failed task is $0: the Amazon Braket
+// Developer Guide, "Cost tracking and saving" > "How remaining budget is
+// computed" (read 2026-11-02). For a task moving to CANCELLED or FAILED, the
+// table gives "Change to current spend: No change". COMPLETED increases it
+// by the estimated cost, "adjusted accordingly for partially completed
+// tasks".
+const ZeroSource = "Braket adds nothing to current spend for a CANCELLED or FAILED task (Developer Guide, Cost tracking and saving: How remaining budget is computed)"
 
 // Untagged is the group for tasks without the grouping tag.
 const Untagged = "untagged"
@@ -188,8 +196,8 @@ func standing(s types.QuantumTaskStatus) Standing {
 	switch s {
 	case types.QuantumTaskStatusCompleted:
 		return Completed
-	case types.QuantumTaskStatusCancelled, types.QuantumTaskStatusCancelling, types.QuantumTaskStatusFailed:
-		return IfBilled
+	case types.QuantumTaskStatusCancelled, types.QuantumTaskStatusFailed:
+		return NotCharged
 	default:
 		return Pending
 	}
@@ -206,6 +214,11 @@ func price1(ctx context.Context, t braket.Task, o Options, acct func(context.Con
 	if s.CreatedAt != nil {
 		line.CreatedAt = s.CreatedAt.UTC()
 	}
+	if line.Standing == NotCharged {
+		line.Estimate = &Figure{Kind: price.Kind, PricesAsOf: o.Prices.AsOf, USD: price.Nano(0).String(),
+			Arithmetic: "$0: " + strings.ToLower(line.Status) + "; " + ZeroSource}
+		return line, nil
+	}
 	d, err := o.Prices.Lookup(dev)
 	if err != nil {
 		line.Standing, line.Note, line.Missing = Unpriced, err.Error(), "price"
@@ -220,11 +233,9 @@ func price1(ctx context.Context, t braket.Task, o Options, acct func(context.Con
 	var dur time.Duration
 	known := false
 	if d.Simulator() {
-		switch {
-		case line.Standing == Pending:
+		switch line.Standing {
+		case Pending:
 			line.Note = "no billed duration until the task completes"
-		case s.Status != types.QuantumTaskStatusCompleted:
-			line.Note = "no billed duration: the task didn't complete"
 		default:
 			ms, err := duration(ctx, t, o, acct)
 			if err != nil {
@@ -354,7 +365,8 @@ type Group struct {
 	Key       string `json:"key"`
 	Completed Sum    `json:"completed"`
 	Pending   Sum    `json:"pending"`
-	IfBilled  Sum    `json:"if_billed"`
+	// NotCharged is cancelled and failed tasks, at $0.
+	NotCharged Sum `json:"not_charged"`
 	// Unpriced counts tasks with no figure, and their shots.
 	Unpriced      int   `json:"unpriced_tasks"`
 	UnpricedShots int64 `json:"unpriced_shots"`
@@ -362,12 +374,12 @@ type Group struct {
 
 // Tasks and Shots count every task in the group, whatever its standing.
 func (g Group) Tasks() int {
-	return g.Completed.Tasks + g.Pending.Tasks + g.IfBilled.Tasks + g.Unpriced
+	return g.Completed.Tasks + g.Pending.Tasks + g.NotCharged.Tasks + g.Unpriced
 }
 
 // Shots is the shots of every task in the group.
 func (g Group) Shots() int64 {
-	return g.Completed.Shots + g.Pending.Shots + g.IfBilled.Shots + g.UnpricedShots
+	return g.Completed.Shots + g.Pending.Shots + g.NotCharged.Shots + g.UnpricedShots
 }
 
 func (g *Group) add(ln Line) {
@@ -376,8 +388,8 @@ func (g *Group) add(ln Line) {
 		g.Completed.add(ln)
 	case Pending:
 		g.Pending.add(ln)
-	case IfBilled:
-		g.IfBilled.add(ln)
+	case NotCharged:
+		g.NotCharged.add(ln)
 	case Unpriced:
 		g.Unpriced++
 		g.UnpricedShots += ln.Shots
@@ -431,7 +443,7 @@ func (l *Ledger) Group(by string) ([]Group, Group, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
 	fill := func(g *Group) {
-		for _, s := range []*Sum{&g.Completed, &g.Pending, &g.IfBilled} {
+		for _, s := range []*Sum{&g.Completed, &g.Pending, &g.NotCharged} {
 			s.USD = s.Nano.String()
 		}
 	}
