@@ -50,6 +50,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on gate devices and AHS (`.json`) on analog ones. For SV1 and DM1 the
   estimate is the minimum charge, and `--budget` needs `--duration`; with
   `--device-region` you choose the region. `--json` is supported.
+- **`puff ls`** lists quantum tasks in every Braket region, including tasks
+  that puff didn't submit (their project and run id show `-`). Filters:
+  `--state` (repeatable), `--since` (default 30 days; `0` for all),
+  `--project`, `--device` and `--mine` (only tasks puff submitted). If a
+  region fails, it is named, the other regions are still listed, and the
+  command exits 1. `--json` is supported and reports `complete` and
+  `regions_failed`.
+- **`puff get <task>`** shows one task: status, queue position while it
+  waits, failure reason, device, shots, program count, times, project, run id
+  and results location. Takes a task ID or a task ARN. An ID is searched for
+  in the same regions `ls` covers; if it isn't found and a region couldn't be
+  searched, that region is named. `--json` is supported.
+- **`puff wait <task>`** polls a task until it finishes and prints each change
+  of status and queue position to stderr. Exits 0 when the task completes,
+  and 1 when it fails, is cancelled, or `--timeout` (default 30m) passes.
+  `--interval` sets the time between polls (default 10s). A failed poll is
+  reported and retried, and three in a row end the wait. Ctrl-C stops waiting
+  but doesn't cancel the task. With `--json`, the last status is printed even
+  when the wait fails.
+- **`puff cancel <task>`** cancels an unfinished task and prints the status
+  the service reports. Cancelling is not billed. A task that has already
+  finished, or finishes before the cancel arrives, is left alone and reported
+  as such. `--json` is supported.
+- Account IDs in task ARNs, results locations and service error text are shown
+  as `<account>` in all four commands.
 
 ### Changed
 - **Repo tooling only, no change to `puff`:** G0 API probes (`make probe`,

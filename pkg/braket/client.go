@@ -122,3 +122,9 @@ func (f *awsFactory) Parameters(ctx context.Context, region string) (ParameterRe
 	}
 	return ssm.NewFromConfig(cfg), nil
 }
+
+// Canceller cancels quantum tasks. Cancelling isn't billable, but it changes
+// account state, so like Creator only pkg/gate holds one.
+type Canceller interface {
+	CancelQuantumTask(ctx context.Context, in *braket.CancelQuantumTaskInput, opts ...func(*braket.Options)) (*braket.CancelQuantumTaskOutput, error)
+}

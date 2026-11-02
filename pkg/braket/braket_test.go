@@ -454,12 +454,79 @@ func TestAHSAction(t *testing.T) {
 }
 
 // TestReadInterfaceHasNoBillableMethod guards law 1 at the type level: the
-// read interface must not grow a Create method.
+// read interface must not grow a Create or Cancel method.
 func TestReadInterfaceHasNoBillableMethod(t *testing.T) {
 	api := reflect.TypeOf((*pbraket.API)(nil)).Elem()
 	for i := 0; i < api.NumMethod(); i++ {
-		if strings.HasPrefix(api.Method(i).Name, "Create") {
-			t.Errorf("braket.API has billable method %s; billable calls belong to Creator, held by pkg/gate", api.Method(i).Name)
+		if n := api.Method(i).Name; strings.HasPrefix(n, "Create") || strings.HasPrefix(n, "Cancel") {
+			t.Errorf("braket.API has method %s; Create and Cancel calls belong to Creator and Canceller, held by pkg/gate", n)
 		}
+	}
+}
+
+// TestContracts applies #47's partial-failure contract to Discover and
+// SearchTasks.
+func TestContracts(t *testing.T) {
+	mk := func(t *testing.T) *testutil.FakeFactory { return testutil.TasksFactory(t, "../../testdata") }
+	discover := func(ctx context.Context, f *testutil.FakeFactory) ([]string, error) {
+		inv, err := pbraket.Discover(ctx, f)
+		if inv == nil {
+			return nil, err
+		}
+		var got []string
+		for r, ds := range inv.Devices {
+			for range ds {
+				got = append(got, r)
+			}
+		}
+		return got, err
+	}
+	search := func(ctx context.Context, f *testutil.FakeFactory) ([]string, error) {
+		regions := []string{"eu-north-1", "eu-west-2", "us-east-1", "us-west-1", "us-west-2"}
+		tasks, err := pbraket.SearchTasks(ctx, f, regions, pbraket.TaskQuery{})
+		var got []string
+		for _, tk := range tasks {
+			got = append(got, tk.Region)
+		}
+		return got, err
+	}
+	for _, region := range []string{"eu-north-1", "us-west-1"} {
+		t.Run("Discover "+region, func(t *testing.T) {
+			testutil.AssertIncompleteContract(t, region, mk, discover, "SearchDevices")
+		})
+	}
+	t.Run("SearchTasks", func(t *testing.T) {
+		testutil.AssertIncompleteContract(t, "us-west-1", mk, search, "SearchQuantumTasks")
+	})
+}
+
+func TestTaskReads(t *testing.T) {
+	f := testutil.TasksFactory(t, "../../testdata")
+	ctx := context.Background()
+	regions := []string{"eu-north-1", "eu-west-2", "us-east-1", "us-west-1", "us-west-2"}
+	g, err := pbraket.FindTask(ctx, f, regions, "000000000000", "617b7e2b-f77f-433b-8226-6cc55eb8d077")
+	if err != nil || aws.ToString(g.DeviceArn) != "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q" {
+		t.Fatalf("FindTask Cepheus G0 task: %v %v", g, err)
+	}
+	if _, err := pbraket.FindTask(ctx, f, regions, "000000000000", "9b1c1a5e-1111-4222-8333-944455556666"); err == nil || !strings.Contains(err.Error(), "not found in any region") {
+		t.Errorf("missing task: %v", err)
+	}
+	if _, err := pbraket.FindTask(ctx, f, regions, "000000000000", "../x"); err == nil || !strings.Contains(err.Error(), "not a task ID") {
+		t.Errorf("bad id: %v", err)
+	}
+	f.Regions["us-east-1"].Err = errors.New("down")
+	if _, err := pbraket.FindTask(ctx, f, regions, "000000000000", "9b1c1a5e-1111-4222-8333-944455556666"); err == nil {
+		t.Error("missing everywhere answered, one region down: want an error")
+	} else if _, ok := pbraket.AsIncomplete(err); !ok {
+		t.Errorf("want IncompleteError (the task may be in the region that failed): %v", err)
+	}
+	if _, err := pbraket.GetTask(ctx, f, "not-an-arn"); err == nil {
+		t.Error("GetTask accepted a non-ARN")
+	}
+	if !pbraket.Terminal("COMPLETED") || pbraket.Terminal("QUEUED") {
+		t.Error("Terminal")
+	}
+	if !pbraket.IsNotFound(&types.ResourceNotFoundException{}) || pbraket.IsNotFound(errors.New("other")) {
+		t.Error("IsNotFound")
 	}
 }
