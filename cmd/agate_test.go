@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 
 	pbraket "github.com/spore-host/puffball/pkg/braket"
 	"github.com/spore-host/puffball/pkg/gate"
+	"github.com/spore-host/puffball/pkg/results"
 	"github.com/spore-host/puffball/pkg/testutil"
 )
 
@@ -18,7 +20,9 @@ import (
 // positional args and flags, without --real. A command that defines --real
 // and has no entry here fails TestAGateEveryCommandWithoutReal, so a new
 // billable command can't skip A-gate by exiting early on a usage error.
-var agateArgs = map[string][]string{}
+var agateArgs = map[string][]string{
+	"puff run": {"../testdata/programs/bell.qasm", "--device", "cepheus", "--shots", "100"},
+}
 
 // leafCommands returns every runnable, user-visible command.
 func leafCommands(root *cobra.Command) []*cobra.Command {
@@ -83,6 +87,12 @@ func TestAGateEveryCommandWithoutReal(t *testing.T) {
 		return testutil.DevicesFactory(t, "../testdata/devices"), nil
 	}
 
+	// A billable command must not reach STS or S3 before its gate approves:
+	// any results-store call fails the test.
+	origResults := newResults
+	t.Cleanup(func() { newResults = origResults })
+	newResults = func() results.Store { return failingResults{t} }
+
 	leaves := leafCommands(rootCmd)
 	if len(leaves) == 0 {
 		t.Fatal("no commands found; a harness that runs nothing must not pass")
@@ -139,4 +149,20 @@ func TestAddGateFlags(t *testing.T) {
 	if g, err := openGate(c, f); err != nil || g == nil {
 		t.Fatalf("openGate: %v", err)
 	}
+}
+
+// failingResults fails the test on any STS or S3 call.
+type failingResults struct{ t *testing.T }
+
+func (f failingResults) Account(context.Context) (string, error) {
+	f.t.Error("STS called before the gate approved")
+	return "", errors.New("no")
+}
+func (f failingResults) Exists(context.Context, string, string, string) (bool, error) {
+	f.t.Error("S3 called before the gate approved")
+	return false, errors.New("no")
+}
+func (f failingResults) Create(context.Context, string, string) error {
+	f.t.Error("S3 CreateBucket called before the gate approved")
+	return errors.New("no")
 }

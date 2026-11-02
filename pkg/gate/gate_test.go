@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -171,7 +172,7 @@ func TestPermitCreates(t *testing.T) {
 	if err != nil || p == nil {
 		t.Fatal(p, err)
 	}
-	s, err := p.CreateQuantumTask(context.Background(), "us-west-1", "r/a", input())
+	s, err := p.Submit(context.Background(), "us-west-1", "r/a", input())
 	if err != nil || s.TaskArn == "" || s.ClientToken == "" {
 		t.Fatalf("CreateQuantumTask = %+v, %v", s, err)
 	}
@@ -181,10 +182,10 @@ func TestPermitCreates(t *testing.T) {
 	if !strings.Contains(out.String(), "submitting r/a: estimate $0.00375 (prices as of 2026-10)") {
 		t.Errorf("submission not printed with its estimate: %q", out)
 	}
-	if _, err := p.CreateQuantumTask(context.Background(), "us-west-1", "r/a", input()); err == nil {
+	if _, err := p.Submit(context.Background(), "us-west-1", "r/a", input()); err == nil {
 		t.Error("the same approved item was spent twice under one permit")
 	}
-	if _, err := p.CreateQuantumTask(context.Background(), "us-west-1", "r/never-approved", input()); err == nil {
+	if _, err := p.Submit(context.Background(), "us-west-1", "r/never-approved", input()); err == nil {
 		t.Error("an unapproved key was submitted")
 	}
 }
@@ -201,7 +202,7 @@ func TestRetryAfterLostResponseCreatesOnce(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return p.CreateQuantumTask(context.Background(), "us-west-1", "r/a", input())
+		return p.Submit(context.Background(), "us-west-1", "r/a", input())
 	}
 	if _, err := run(); err == nil {
 		t.Fatal("first attempt should report the lost response")
@@ -228,7 +229,7 @@ func TestCreateFailures(t *testing.T) {
 	t.Run("token not saved means no call", func(t *testing.T) {
 		g, _ := newGate(t, gate.Options{Real: true, Tokens: &gate.MemTokens{Err: errors.New("disk full")}})
 		p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
-		if _, err := p.CreateQuantumTask(ctx, "us-west-1", "r/a", input()); err == nil {
+		if _, err := p.Submit(ctx, "us-west-1", "r/a", input()); err == nil {
 			t.Error("submitted without a saved client token")
 		}
 	})
@@ -236,7 +237,7 @@ func TestCreateFailures(t *testing.T) {
 		rc := &testutil.RecordingCreator{Err: errors.New("AccessDeniedException")}
 		g, _ := newGate(t, gate.Options{Real: true, Creators: rc.Factory()})
 		p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
-		if _, err := p.CreateQuantumTask(ctx, "us-west-1", "r/a", input()); err == nil || !strings.Contains(err.Error(), "AccessDenied") {
+		if _, err := p.Submit(ctx, "us-west-1", "r/a", input()); err == nil || !strings.Contains(err.Error(), "AccessDenied") {
 			t.Errorf("err = %v", err)
 		}
 	})
@@ -248,7 +249,7 @@ func TestCreateFailures(t *testing.T) {
 			p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
 			in := input()
 			in.Shots = aws.Int64(shots)
-			_, err := p.CreateQuantumTask(ctx, "us-west-1", "r/a", in)
+			_, err := p.Submit(ctx, "us-west-1", "r/a", in)
 			if i == 1 && (err == nil || !strings.Contains(err.Error(), "different input")) {
 				t.Errorf("retry with different input: %v", err)
 			}
@@ -261,17 +262,17 @@ func TestCreateFailures(t *testing.T) {
 		tokens := &gate.MemTokens{}
 		g0, _ := newGate(t, gate.Options{Real: true, Creators: (&testutil.RecordingCreator{LoseResponse: 1}).Factory(), Tokens: tokens})
 		p0, _ := g0.Approve([]gate.Estimate{est("r/a", 1)})
-		_, _ = p0.CreateQuantumTask(ctx, "us-east-1", "r/a", input())
+		_, _ = p0.Submit(ctx, "us-east-1", "r/a", input())
 		g, _ := newGate(t, gate.Options{Real: true, Tokens: tokens})
 		p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
-		if _, err := p.CreateQuantumTask(ctx, "us-west-1", "r/a", input()); err == nil {
+		if _, err := p.Submit(ctx, "us-west-1", "r/a", input()); err == nil {
 			t.Error("a key first used in another region was submitted again")
 		}
 	})
 	t.Run("no creator for region", func(t *testing.T) {
 		g, _ := newGate(t, gate.Options{Real: true, Creators: func(context.Context, string) (pbraket.Creator, error) { return nil, errors.New("no endpoint") }})
 		p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
-		if _, err := p.CreateQuantumTask(ctx, "us-west-1", "r/a", input()); err == nil {
+		if _, err := p.Submit(ctx, "us-west-1", "r/a", input()); err == nil {
 			t.Error("missing creator not reported")
 		}
 	})
@@ -299,7 +300,7 @@ func TestFileTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, ok, err := ft.Get("run/1")
-	if err != nil || !ok || got != r {
+	if err != nil || !ok || !reflect.DeepEqual(got, r) {
 		t.Fatalf("Get = %+v %v %v", got, ok, err)
 	}
 	if err := (gate.FileTokens{Dir: "/dev/null/x"}).Put(r); err == nil {
@@ -342,7 +343,7 @@ func TestConcurrentRunsOfOneKeyCreateOnce(t *testing.T) {
 				errs <- err
 				return
 			}
-			_, err = p.CreateQuantumTask(context.Background(), "us-west-1", "run/a", input())
+			_, err = p.Submit(context.Background(), "us-west-1", "run/a", input())
 			if err != nil && !errors.Is(err, gate.ErrAlreadySubmitted) {
 				errs <- err
 			}
@@ -404,7 +405,7 @@ func TestServiceErrorsAreScrubbed(t *testing.T) {
 	rc := &testutil.RecordingCreator{Err: cause}
 	g, _ := newGate(t, gate.Options{Real: true, Creators: rc.Factory()})
 	p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
-	_, err := p.CreateQuantumTask(context.Background(), "us-west-1", "r/a", input())
+	_, err := p.Submit(context.Background(), "us-west-1", "r/a", input())
 	if err == nil || strings.Contains(err.Error(), "123456789012") || strings.Contains(err.Error(), "alice") {
 		t.Fatalf("err = %v; want it scrubbed", err)
 	}
@@ -418,7 +419,7 @@ func TestExperimentalCapabilitiesRefused(t *testing.T) {
 	p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
 	in := input()
 	in.ExperimentalCapabilities = &types.ExperimentalCapabilitiesMemberEnabled{Value: types.ExperimentalCapabilitiesEnablementTypeAll}
-	if _, err := p.CreateQuantumTask(context.Background(), "us-west-1", "r/a", in); err == nil {
+	if _, err := p.Submit(context.Background(), "us-west-1", "r/a", in); err == nil {
 		t.Error("experimental capabilities accepted")
 	}
 }
@@ -431,7 +432,7 @@ func TestInputHashNilAndEmptyAgree(t *testing.T) {
 		p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
 		in := input()
 		in.Tags = tags
-		_, err := p.CreateQuantumTask(context.Background(), "us-west-1", "r/a", in)
+		_, err := p.Submit(context.Background(), "us-west-1", "r/a", in)
 		if i == 1 && err != nil {
 			t.Errorf("retry with empty (not nil) tags refused: %v", err)
 		}
@@ -460,5 +461,114 @@ func TestClaimSweepsStaleTemps(t *testing.T) {
 	}
 	if _, err := os.Stat(fresh); err != nil {
 		t.Error("a recent temp file (another run in flight) was removed")
+	}
+}
+
+func TestPermitCheck(t *testing.T) {
+	g, _ := newGate(t, gate.Options{Real: true, Tokens: gate.FileTokens{Dir: filepath.Join(t.TempDir(), "t")}})
+	p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
+	if err := p.Check(); err != nil {
+		t.Errorf("writable dir: %v", err)
+	}
+	ro := t.TempDir()
+	if err := os.Chmod(ro, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(ro, 0o700) })
+	g, _ = newGate(t, gate.Options{Real: true, Tokens: gate.FileTokens{Dir: filepath.Join(ro, "tokens")}})
+	p, _ = g.Approve([]gate.Estimate{est("r/a", 1)})
+	if err := p.Check(); (err == nil || !strings.Contains(err.Error(), "XDG_STATE_HOME")) && os.Getuid() != 0 {
+		t.Errorf("unwritable dir: %v", err)
+	}
+	g, _ = newGate(t, gate.Options{Real: true}) // MemTokens: nothing to check
+	p, _ = g.Approve([]gate.Estimate{est("r/a", 1)})
+	if err := p.Check(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLegacyRecordWithTask(t *testing.T) {
+	in := input()
+	in.Tags = map[string]string{"puffball:run-id": "run", "puffball:rung": "sv1"}
+	h, err := gate.LegacyHashForTest(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, tc := range map[string]struct {
+		hash    string
+		changed bool
+	}{"same request": {h, false}, "changed request": {h, true}} {
+		tokens := &gate.MemTokens{}
+		_ = tokens.Put(gate.TokenRecord{Key: "r/a", Region: "us-west-1", ClientToken: "t", InputHash: tc.hash, TaskArn: "arn:x"})
+		rc := &testutil.RecordingCreator{}
+		g, _ := newGate(t, gate.Options{Real: true, Creators: rc.Factory(), Tokens: tokens})
+		p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
+		req := in
+		if tc.changed {
+			req.Shots = aws.Int64(999)
+		}
+		s, err := p.Submit(context.Background(), "us-west-1", "r/a", req)
+		switch {
+		case !tc.changed && (!errors.Is(err, gate.ErrAlreadySubmitted) || s.TaskArn != "arn:x"):
+			t.Errorf("%s: %+v %v", name, s, err)
+		case tc.changed && (err == nil || errors.Is(err, gate.ErrAlreadySubmitted)):
+			t.Errorf("%s: a changed request against a legacy record was not refused: %v", name, err)
+		}
+		if len(rc.Calls) != 0 {
+			t.Errorf("%s: %d calls", name, len(rc.Calls))
+		}
+	}
+}
+
+// TestMismatchNamesFields: a reused key with changed input is refused before
+// any call, naming every field that differs; associations are part of the
+// identity; pinned tags are not.
+func TestMismatchNamesFields(t *testing.T) {
+	tokens := &gate.MemTokens{}
+	rc := &testutil.RecordingCreator{LoseResponse: 1}
+	submit := func(mut func(*braketsdk.CreateQuantumTaskInput)) error {
+		g, _ := newGate(t, gate.Options{Real: true, Creators: rc.Factory(), Tokens: tokens, Pinned: []string{"puffball:est-usd"}})
+		p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
+		in := input()
+		in.Tags = map[string]string{"owner": "me", "puffball:est-usd": "1"}
+		in.Associations = []types.Association{{Arn: aws.String("arn:aws:braket:us-west-1:000000000000:job/j"), Type: types.AssociationTypeReservationTimeWindowArn}}
+		if mut != nil {
+			mut(&in)
+		}
+		_, err := p.Submit(context.Background(), "us-west-1", "r/a", in)
+		return err
+	}
+	_ = submit(nil) // lost response: token claimed, no task recorded
+	// Only a pinned tag differs: the same request.
+	if err := submit(func(in *braketsdk.CreateQuantumTaskInput) { in.Tags["puffball:est-usd"] = "2" }); err != nil {
+		t.Fatalf("pinned tag change refused: %v", err)
+	}
+	if got := rc.Calls[1].Tags["puffball:est-usd"]; got != "1" {
+		t.Errorf("pinned tag resent as %q, want the first value 1", got)
+	}
+	tokens2 := &gate.MemTokens{}
+	tokens = tokens2
+	rc.LoseResponse = 1
+	_ = submit(nil)
+	err := submit(func(in *braketsdk.CreateQuantumTaskInput) {
+		in.Shots = aws.Int64(7)
+		in.Tags["owner"] = "you"
+		in.Associations = nil
+		in.OutputS3KeyPrefix = aws.String("elsewhere")
+	})
+	for _, want := range []string{"shots", "tags", "associations", "results prefix"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("mismatch error %v does not name %q", err, want)
+		}
+	}
+}
+
+func TestDiffersWithoutRecord(t *testing.T) {
+	tokens := &gate.MemTokens{}
+	_ = tokens.Put(gate.TokenRecord{Key: "r/a", Region: "us-west-1", ClientToken: "t", InputHash: "unrelated"})
+	g, _ := newGate(t, gate.Options{Real: true, Tokens: tokens})
+	p, _ := g.Approve([]gate.Estimate{est("r/a", 1)})
+	if _, err := p.Submit(context.Background(), "us-west-1", "r/a", input()); err == nil || !strings.Contains(err.Error(), "fields not recorded") {
+		t.Errorf("record without fields: %v", err)
 	}
 }

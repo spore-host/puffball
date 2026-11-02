@@ -77,6 +77,10 @@ type Options struct {
 	Creators func(ctx context.Context, region string) (braket.Creator, error)
 	// Tokens stores client tokens across runs.
 	Tokens TokenStore
+	// Pinned names tag keys derived from the run (an estimate, a price date)
+	// rather than chosen by the user: they are left out of a request's
+	// identity, and a retry resends the values first sent.
+	Pinned []string
 }
 
 // Gate decides whether billable calls may happen and makes them.
@@ -153,13 +157,29 @@ type Permit struct {
 	items map[string]Estimate // approved and not yet spent
 }
 
+// Check verifies, before a caller does anything else for the run, that the
+// gate can record client tokens (if its store can say). A failure here stops
+// a --real run before it creates a bucket or submits anything.
+func (p *Permit) Check() error {
+	if c, ok := p.g.o.Tokens.(interface{ Check() error }); ok {
+		return c.Check()
+	}
+	return nil
+}
+
 // ErrAlreadySubmitted means the key already created a task in an earlier run;
 // the Submission carries its ARN and nothing new was created.
 var ErrAlreadySubmitted = errors.New("already submitted")
 
-// Submission is the outcome of a create.
+// Submission is the outcome of a create. Retried is true when an earlier
+// attempt of the key had claimed its token but recorded no task (its response
+// was lost): the service then returns the task that attempt created, if any.
 type Submission struct {
 	Key, Region, TaskArn, ClientToken string
+	Retried                           bool
+	// Pinned are the derived tags as the task was created with them (nil for
+	// a record from before they were stored).
+	Pinned map[string]string
 }
 
 func (p *Permit) take(key string) (Estimate, error) {
@@ -173,7 +193,7 @@ func (p *Permit) take(key string) (Estimate, error) {
 	return e, nil
 }
 
-// CreateQuantumTask creates the task for an approved key in region.
+// Submit creates the task for an approved key in region (CreateQuantumTask).
 //
 // The key's client token is claimed atomically before the call (the first
 // claim wins; every later run of the key, in this process or another, gets the
@@ -182,7 +202,7 @@ func (p *Permit) take(key string) (Estimate, error) {
 // task is already recorded returns that Submission and ErrAlreadySubmitted
 // without calling the service; a key first used with other input or in
 // another region is refused before calling.
-func (p *Permit) CreateQuantumTask(ctx context.Context, region, key string, in braketsdk.CreateQuantumTaskInput) (Submission, error) {
+func (p *Permit) Submit(ctx context.Context, region, key string, in braketsdk.CreateQuantumTaskInput) (Submission, error) {
 	e, err := p.take(key)
 	if err != nil {
 		return Submission{}, err
@@ -195,7 +215,11 @@ func (p *Permit) CreateQuantumTask(ctx context.Context, region, key string, in b
 	if len(in.Associations) == 0 {
 		in.Associations = nil
 	}
-	hash, err := inputHash(in)
+	id, pinned, err := identity(in, p.g.o.Pinned)
+	if err != nil {
+		return Submission{}, err
+	}
+	hash, err := id.hash()
 	if err != nil {
 		return Submission{}, err
 	}
@@ -203,18 +227,37 @@ func (p *Permit) CreateQuantumTask(ctx context.Context, region, key string, in b
 	if err != nil {
 		return Submission{}, err
 	}
-	rec, err := p.g.o.Tokens.Claim(TokenRecord{Key: key, Region: region, ClientToken: tok, InputHash: hash})
+	rec, err := p.g.o.Tokens.Claim(TokenRecord{Key: key, Region: region, ClientToken: tok, InputHash: hash, Request: &id, Pinned: pinned})
 	if err != nil {
 		return Submission{}, fmt.Errorf("save client token before submitting: %w", err)
 	}
+	// A record from before Request was stored hashed the whole request, tags
+	// included. If that older hash matches, it is this request.
+	if rec.Request == nil && rec.InputHash != hash {
+		if legacy, err := legacyHash(in); err == nil && legacy == rec.InputHash {
+			if rec.TaskArn != "" && rec.Region == region {
+				return Submission{Key: key, Region: rec.Region, TaskArn: rec.TaskArn, ClientToken: rec.ClientToken}, ErrAlreadySubmitted
+			}
+			hash = rec.InputHash
+		}
+	}
 	if rec.InputHash != hash {
-		return Submission{}, fmt.Errorf("gate: key %q was first submitted with different input; a client token can't be reused for a different request (the service answers 409 ConflictException)", key)
+		return Submission{}, fmt.Errorf("gate: key %q was first submitted with different input (%s); a client token can't be reused for a different request (the service answers 409 ConflictException); use a new run id",
+			key, rec.Request.differs(id))
 	}
 	if rec.Region != region {
 		return Submission{}, fmt.Errorf("gate: key %q was first submitted in %s, not %s", key, rec.Region, region)
 	}
 	if rec.TaskArn != "" {
-		return Submission{Key: key, Region: rec.Region, TaskArn: rec.TaskArn, ClientToken: rec.ClientToken}, ErrAlreadySubmitted
+		return Submission{Key: key, Region: rec.Region, TaskArn: rec.TaskArn, ClientToken: rec.ClientToken, Pinned: rec.Pinned}, ErrAlreadySubmitted
+	}
+	retried := rec.ClientToken != tok
+	// Resend the derived tags exactly as first sent.
+	for k, v := range rec.Pinned {
+		if in.Tags == nil {
+			in.Tags = map[string]string{}
+		}
+		in.Tags[k] = v
 	}
 	c, err := p.g.o.Creators(ctx, region)
 	if err != nil {
@@ -235,26 +278,20 @@ func (p *Permit) CreateQuantumTask(ctx context.Context, region, key string, in b
 	if err := p.g.o.Tokens.Put(rec); err != nil {
 		return Submission{}, scrub.Error(fmt.Errorf("task %s created but not recorded (retry the same key: it reuses the token and gets this task back): %w", arn, err))
 	}
-	return Submission{Key: key, Region: region, TaskArn: arn, ClientToken: rec.ClientToken}, nil
+	return Submission{Key: key, Region: region, TaskArn: arn, ClientToken: rec.ClientToken, Retried: retried, Pinned: rec.Pinned}, nil
 }
 
-// hashedInput is the part of a request that identifies it, in a form puffball
-// owns, so an SDK upgrade that adds fields doesn't change every stored hash.
-type hashedInput struct {
-	Action, DeviceArn, DeviceParameters string
-	OutputS3Bucket, OutputS3KeyPrefix   string
-	JobToken                            string
-	Shots                               int64
-	Tags                                map[string]string // encoding/json sorts map keys
-	Associations                        []string
-}
-
-// inputHash identifies a request apart from its client token.
-func inputHash(in braketsdk.CreateQuantumTaskInput) (string, error) {
-	if in.ExperimentalCapabilities != nil {
-		return "", errors.New("gate: experimental capabilities are not supported")
-	}
-	h := hashedInput{
+// legacyHash is the request hash records stored before RequestIdentity: every
+// field below, tags included, with Go field names as JSON keys.
+func legacyHash(in braketsdk.CreateQuantumTaskInput) (string, error) {
+	h := struct {
+		Action, DeviceArn, DeviceParameters string
+		OutputS3Bucket, OutputS3KeyPrefix   string
+		JobToken                            string
+		Shots                               int64
+		Tags                                map[string]string
+		Associations                        []string
+	}{
 		Action: aws.ToString(in.Action), DeviceArn: aws.ToString(in.DeviceArn), DeviceParameters: aws.ToString(in.DeviceParameters),
 		OutputS3Bucket: aws.ToString(in.OutputS3Bucket), OutputS3KeyPrefix: aws.ToString(in.OutputS3KeyPrefix),
 		JobToken: aws.ToString(in.JobToken), Shots: aws.ToInt64(in.Shots),
@@ -267,10 +304,94 @@ func inputHash(in braketsdk.CreateQuantumTaskInput) (string, error) {
 	}
 	b, err := json.Marshal(h)
 	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// RequestIdentity is the part of a request that identifies it, in a form
+// puffball owns (so an SDK upgrade that adds fields doesn't change stored
+// hashes): everything but the client token and the pinned tags.
+type RequestIdentity struct {
+	Action           string            `json:"action"`
+	DeviceArn        string            `json:"device_arn"`
+	DeviceParameters string            `json:"device_parameters,omitempty"`
+	OutputS3Bucket   string            `json:"output_s3_bucket"`
+	OutputS3Prefix   string            `json:"output_s3_prefix"`
+	JobToken         string            `json:"job_token,omitempty"`
+	Shots            int64             `json:"shots"`
+	Tags             map[string]string `json:"tags,omitempty"` // encoding/json sorts map keys
+	Associations     []string          `json:"associations,omitempty"`
+}
+
+// identity splits a request into its identity and its pinned tags.
+func identity(in braketsdk.CreateQuantumTaskInput, pinnedKeys []string) (RequestIdentity, map[string]string, error) {
+	if in.ExperimentalCapabilities != nil {
+		return RequestIdentity{}, nil, errors.New("gate: experimental capabilities are not supported")
+	}
+	id := RequestIdentity{
+		Action: aws.ToString(in.Action), DeviceArn: aws.ToString(in.DeviceArn), DeviceParameters: aws.ToString(in.DeviceParameters),
+		OutputS3Bucket: aws.ToString(in.OutputS3Bucket), OutputS3Prefix: aws.ToString(in.OutputS3KeyPrefix),
+		JobToken: aws.ToString(in.JobToken), Shots: aws.ToInt64(in.Shots),
+	}
+	isPinned := map[string]bool{}
+	for _, k := range pinnedKeys {
+		isPinned[k] = true
+	}
+	var pinned map[string]string
+	for k, v := range in.Tags {
+		if isPinned[k] {
+			if pinned == nil {
+				pinned = map[string]string{}
+			}
+			pinned[k] = v
+			continue
+		}
+		if id.Tags == nil {
+			id.Tags = map[string]string{}
+		}
+		id.Tags[k] = v
+	}
+	for _, a := range in.Associations {
+		id.Associations = append(id.Associations, string(a.Type)+" "+aws.ToString(a.Arn))
+	}
+	return id, pinned, nil
+}
+
+func (r RequestIdentity) hash() (string, error) {
+	b, err := json.Marshal(r)
+	if err != nil {
 		return "", fmt.Errorf("hash request: %w", err)
 	}
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// differs names the fields where r (as first sent) and now differ.
+func (r *RequestIdentity) differs(now RequestIdentity) string {
+	if r == nil {
+		return "fields not recorded"
+	}
+	var d []string
+	add := func(name string, a, b any) {
+		if fmt.Sprint(a) != fmt.Sprint(b) {
+			d = append(d, name)
+		}
+	}
+	add("program", r.Action, now.Action)
+	add("device", r.DeviceArn, now.DeviceArn)
+	add("device parameters", r.DeviceParameters, now.DeviceParameters)
+	add("results bucket", r.OutputS3Bucket, now.OutputS3Bucket)
+	add("results prefix", r.OutputS3Prefix, now.OutputS3Prefix)
+	add("job", r.JobToken, now.JobToken)
+	add("shots", r.Shots, now.Shots)
+	add("tags", r.Tags, now.Tags)
+	add("associations", r.Associations, now.Associations)
+	if len(d) == 0 {
+		return "unknown field"
+	}
+	return "differs in " + strings.Join(d, ", ")
 }
 
 func newToken() (string, error) {

@@ -36,7 +36,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   credentials, and costs nothing. It runs the pinned
   `amazon-braket-default-simulator` 1.41.1 through `uv`, which fetches it once
   and then caches it. `--offline` uses only uv's cache. Prints counts, or
-  `--json`. Running on Amazon Braket comes later.
+  `--json`.
+- **`puff run <file> --device <alias>`** runs on Amazon Braket. The device is
+  found in the live service, the run is priced, and the estimate is printed
+  with its price date. Nothing is submitted without `--real`; `--dry-run` and
+  `--budget` stop it too. With `--real` the task goes to the device's region,
+  with results in that region's default bucket
+  (`amazon-braket-<region>-<account>`, created on a `--real` run if missing,
+  and reported) under `puffball/<run-id>/`. Tasks are tagged
+  `puffball:project` (`--project`), `puffball:rung`, `puffball:run-id` and
+  `puffball:est-usd`, plus any `--tag key=value`. Repeating `--run-id` retries
+  the same request and never creates a second task. OpenQASM 3 (`.qasm`) runs
+  on gate devices and AHS (`.json`) on analog ones. For SV1 and DM1 the
+  estimate is the minimum charge, and `--budget` needs `--duration`; with
+  `--device-region` you choose the region. `--json` is supported.
 
 ### Changed
 - **Repo tooling only, no change to `puff`:** G0 API probes (`make probe`,

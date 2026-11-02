@@ -11,6 +11,9 @@ type gateFlags struct {
 	real   bool
 	dryRun bool
 	budget float64
+	// pinned are the derived tag keys the command's gate pins (set in code,
+	// not a flag; see gate.Options.Pinned).
+	pinned []string
 }
 
 // addGateFlags registers --real, --dry-run and --budget on a billable command.
@@ -23,7 +26,7 @@ func addGateFlags(c *cobra.Command, f *gateFlags) {
 // gateOptions turns a command's gate flags into gate.Options. --budget counts
 // only when given, so --budget 0 means "spend nothing", not "no budget".
 func gateOptions(c *cobra.Command, f gateFlags) gate.Options {
-	o := gate.Options{Real: f.real, DryRun: f.dryRun, Out: c.ErrOrStderr()}
+	o := gate.Options{Real: f.real, DryRun: f.dryRun, Out: c.ErrOrStderr(), Pinned: f.pinned}
 	if c.Flags().Changed("budget") {
 		b := f.budget
 		o.Budget = &b
