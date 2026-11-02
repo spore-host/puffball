@@ -82,6 +82,12 @@ func awsServer(t *testing.T, headStatus int, createCode string) (*httptest.Serve
 			_, _ = io.WriteString(w, `<Error><Code>`+createCode+`</Code><Message>m</Message></Error>`)
 		case r.Method == http.MethodPut:
 			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodGet && r.Header.Get("X-Amz-Expected-Bucket-Owner") != "123456789012":
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = io.WriteString(w, `<Error><Code>AccessDenied</Code><Message>m</Message></Error>`)
+		case r.Method == http.MethodGet:
+			_, _ = io.WriteString(w, `{"additionalMetadata":{}}`)
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 		}
@@ -143,5 +149,25 @@ func TestAWSStore(t *testing.T) {
 	}
 	if err := c.Create(ctx, "us-west-1", "b"); err == nil {
 		t.Error("BucketAlreadyExists (another account) was not an error")
+	}
+}
+
+func TestAWSRead(t *testing.T) {
+	offlineAWS(t)
+	ctx := context.Background()
+	srv, seen := awsServer(t, http.StatusOK, "")
+	a := AWS{Endpoint: srv.URL}
+	b, err := a.Read(ctx, "us-west-1", "b", "puffball/r/t/results.json", "123456789012", 1<<20)
+	if err != nil || string(b) != `{"additionalMetadata":{}}` {
+		t.Fatalf("Read = %q, %v", b, err)
+	}
+	if last := (*seen)[len(*seen)-1]; !strings.Contains(last, "GET /b/puffball/r/t/results.json owner=123456789012") {
+		t.Errorf("GetObject without ExpectedBucketOwner: %s", last)
+	}
+	if _, err := a.Read(ctx, "us-west-1", "b", "k", "123456789012", 5); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("over the limit: %v", err)
+	}
+	if _, err := a.Read(ctx, "us-west-1", "b", "k", "210987654321", 1<<20); err == nil {
+		t.Error("another account's bucket was read")
 	}
 }
