@@ -16,10 +16,17 @@ import (
 //go:embed schema/record-v0.schema.json
 var SchemaJSON []byte
 
-// Verify checks a record offline: that it conforms to [SchemaJSON], and that
-// every hash it can recompute matches (program sources, compiled programs,
-// calibration subsets). Object hashes link to S3 and need the objects to
-// check. It returns each problem found; none means the record checks.
+// Verify checks a record offline:
+//   - it conforms to [SchemaJSON];
+//   - every field left empty or absent is named in missing[] (law 6; see
+//     [Unfilled]);
+//   - each executable's counts add up to its shots, and those to
+//     shots.measured;
+//   - every hash it can recompute matches (program sources, compiled
+//     programs, calibration subsets).
+//
+// Object hashes link to S3 and need the objects to check. It returns each
+// problem found; none means the record checks.
 func Verify(b []byte) []string {
 	var doc any
 	dec := json.NewDecoder(bytes.NewReader(b))
@@ -41,6 +48,25 @@ func Verify(b []byte) []string {
 		return []string{"record: " + err.Error()}
 	}
 	var p []string
+	for _, f := range Unfilled(&r) {
+		p = append(p, f+": empty or absent, and not named in missing[]")
+	}
+	var measured int64
+	for _, pr := range r.Results {
+		for _, ex := range pr.Executables {
+			var n int64
+			for _, c := range ex.Counts {
+				n += c
+			}
+			if n != ex.Shots {
+				p = append(p, fmt.Sprintf("results[%d].executables[%d]: counts add up to %d, not its %d shots", pr.Program, ex.Executable, n, ex.Shots))
+			}
+			measured += ex.Shots
+		}
+	}
+	if measured != r.Shots.Measured {
+		p = append(p, fmt.Sprintf("shots.measured is %d, but the executables' shots add up to %d", r.Shots.Measured, measured))
+	}
 	for i, t := range r.Program.Sources {
 		if Sum([]byte(t.Text)) != t.SHA256 {
 			p = append(p, fmt.Sprintf("program.sources[%d]: sha256 doesn't match its text", i))
@@ -61,6 +87,50 @@ func Verify(b []byte) []string {
 	}
 	sort.Strings(p)
 	return p
+}
+
+// Unfilled returns the record's fields that are empty or absent with no
+// missing[] entry naming them (or a part of them, such as
+// compiled_programs[1]).
+func Unfilled(r *Record) []string {
+	named := func(f string) bool {
+		for _, m := range r.Missing {
+			if m.Field == f || strings.HasPrefix(m.Field, f+".") || strings.HasPrefix(m.Field, f+"[") {
+				return true
+			}
+		}
+		return false
+	}
+	checks := []struct {
+		field string
+		empty bool
+	}{
+		{"task.created_at", r.Task.CreatedAt == nil},
+		{"task.ended_at", r.Task.EndedAt == nil},
+		{"program.sources", len(r.Program.Sources) == 0},
+		{"program.submitted_action_sha256", r.Program.SubmittedSHA256 == ""},
+		{"shots.successful", r.Shots.Successful == nil},
+		{"shots.measured", len(r.Results) == 0},
+		{"physical_qubits", len(r.PhysicalQubits) == 0},
+		{"compiled_programs", len(r.CompiledPrograms) == 0},
+		{"results", len(r.Results) == 0},
+		{"calibration.at_submission", r.Calibration.AtSubmission == nil},
+		{"calibration.at_completion", r.Calibration.AtCompletion == nil},
+		{"cost", r.Cost == nil},
+	}
+	for _, pr := range r.Results {
+		checks = append(checks, struct {
+			field string
+			empty bool
+		}{fmt.Sprintf("results[%d].executables", pr.Program), len(pr.Executables) == 0})
+	}
+	var out []string
+	for _, c := range checks {
+		if c.empty && !named(c.field) {
+			out = append(out, c.field)
+		}
+	}
+	return out
 }
 
 // validator implements the part of JSON Schema SchemaJSON uses: type, const,

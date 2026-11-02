@@ -15,8 +15,16 @@ import (
 const SnapshotSchema = "puffball.device-snapshot/v0"
 
 // SubmissionDir is where puff run stores what it submitted, under the
-// task's results prefix: puffball/<run-id>/submission/.
-func SubmissionDir(prefix string) string { return prefix + "/submission/" }
+// task's results prefix, per device alias: puffball/<run-id>/submission/<alias>/.
+// One run id can submit to several devices (the gate's key is
+// <run-id>/<alias>), so each gets its own.
+func SubmissionDir(prefix, alias string) string { return prefix + "/submission/" + alias + "/" }
+
+// SnapshotMaxAge is how long before a task's creation its submission
+// snapshot may have been read. puff run reads the device seconds before
+// submitting; an older snapshot is one an earlier, failed attempt stored,
+// and isn't the calibration at this submission.
+const SnapshotMaxAge = 15 * time.Minute
 
 // Submission object names, under SubmissionDir.
 const (

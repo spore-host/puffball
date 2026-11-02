@@ -103,7 +103,7 @@
       "read_at": "2026-10-31T12:00:00Z",
       "device_capabilities_sha256": "b6aa60e019ad3bda8b9068064e88e7b93332c4804a9001aa4372289d37b3f04f",
       "calibrated_from": "2026-10-24T14:19:27Z",
-      "calibrated_to": "2026-10-24T14:21:35Z",
+      "calibrated_to": "2026-10-24T16:41:52Z",
       "qubits": {
         "81": {
           "T1": {
@@ -276,7 +276,96 @@
           }
         ]
       },
-      "subset_sha256": "0e4560de6a577abe866ecdd9406ff130586fd1b0d0e8327227f403235ae259ee"
+      "instructions": {
+        "CZ": [
+          {
+            "characteristics": [
+              {
+                "error": 0.001209458798244524,
+                "name": "fCZ",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T15:00:58Z",
+                "value": 0.9932660643495208
+              }
+            ],
+            "node_ids": [
+              81,
+              90
+            ]
+          }
+        ],
+        "I": [
+          {
+            "characteristics": [],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [],
+            "node_ids": [
+              90
+            ]
+          }
+        ],
+        "MEASURE": [
+          {
+            "characteristics": [
+              {
+                "name": "fRO",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T16:41:51Z",
+                "value": 0.979
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "name": "fRO",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T16:41:52Z",
+                "value": 0.986
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          }
+        ],
+        "RX": [
+          {
+            "characteristics": [],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [],
+            "node_ids": [
+              90
+            ]
+          }
+        ],
+        "RZ": [
+          {
+            "characteristics": [],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [],
+            "node_ids": [
+              90
+            ]
+          }
+        ]
+      },
+      "subset_sha256": "86087b282634bf3be7929c530ec1c9a8dbda12678f2f4a98404941c87ebc5ca3"
     }
   },
   "cost": {
@@ -372,11 +461,11 @@
   "missing": [
     {
       "field": "program.submitted_action_sha256",
-      "reason": "puffball/g0c-1a1fdca0/submission/action.json: not stored"
+      "reason": "puffball/g0c-1a1fdca0/submission/cepheus/action.json: not stored"
     },
     {
       "field": "calibration.at_submission",
-      "reason": "puffball/g0c-1a1fdca0/submission/device.json: not stored"
+      "reason": "puffball/g0c-1a1fdca0/submission/cepheus/device.json: not stored"
     }
   ]
 }

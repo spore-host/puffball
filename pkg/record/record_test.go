@@ -82,7 +82,7 @@ func (f *fixture) submitted(t *testing.T, caps string) {
 	if err := json.Unmarshal(raw, &r); err != nil {
 		t.Fatal(err)
 	}
-	dir := record.SubmissionDir(results.Prefix + f.task.Tags["puffball:run-id"])
+	dir := record.SubmissionDir(results.Prefix+f.task.Tags["puffball:run-id"], "cepheus")
 	f.extra[dir+record.ActionObject] = r.AdditionalMetadata.Action
 	snap, err := record.NewSnapshot(*f.task.DeviceArn, "us-west-1", caps, f.task.CreatedAt.Add(-time.Minute))
 	if err != nil {
@@ -263,6 +263,86 @@ func TestRecordRecalibrated(t *testing.T) {
 	}
 }
 
+// Only qubit 81's readout (an instructions[] MEASURE site) recalibrated
+// after the end: that alone voids at_completion.
+func TestRecordReadoutRecalibrated(t *testing.T) {
+	f := load(t, "cepheus-bell-100")
+	f.task.EndedAt = ptr(time.Date(2026, 10, 24, 16, 0, 0, 0, time.UTC))
+	f.task.CreatedAt = ptr(time.Date(2026, 10, 24, 15, 59, 0, 0, time.UTC))
+	r := build(t, f, cepheusCaps(t))
+	if r.Calibration.AtCompletion != nil || !strings.Contains(missing(r)["calibration.at_completion"], "recalibrated at 2026-10-24T16:41:52Z") {
+		t.Errorf("calibration %+v; missing %v", r.Calibration, missing(r))
+	}
+	if c := r.Calibration.AtRecord; c == nil || len(c.Instructions["MEASURE"]) != 2 || len(c.Instructions["CZ"]) != 1 {
+		t.Errorf("instruction sites not kept: %+v", c)
+	}
+}
+
+// Two tasks under one run id (the G0 probe did this): the program set must
+// not take the Bell task's submitted action as its own.
+func TestRecordForeignSubmission(t *testing.T) {
+	bell := load(t, "cepheus-bell-100")
+	caps := cepheusCaps(t)
+	bell.submitted(t, caps)
+	ps := load(t, "cepheus-progset-2x100")
+	ps.extra = bell.extra
+	r := build(t, ps, caps)
+	if r.Program.SubmittedSHA256 != "" || !strings.Contains(missing(r)["program.submitted_action_sha256"], "isn't the program the results report") {
+		t.Errorf("submitted %q; missing %v", r.Program.SubmittedSHA256, missing(r))
+	}
+}
+
+// A snapshot left by an earlier, failed attempt isn't this submission's.
+func TestRecordStaleSnapshot(t *testing.T) {
+	f := load(t, "cepheus-bell-100")
+	caps := cepheusCaps(t)
+	f.submitted(t, caps)
+	dir := record.SubmissionDir(results.Prefix+f.task.Tags["puffball:run-id"], "cepheus")
+	old, _ := record.NewSnapshot(*f.task.DeviceArn, "us-west-1", caps, f.task.CreatedAt.Add(-48*time.Hour))
+	f.extra[dir+record.DeviceObject] = old
+	r := build(t, f, caps)
+	if r.Calibration.AtSubmission != nil || !strings.Contains(missing(r)["calibration.at_submission"], "earlier attempt") {
+		t.Errorf("at_submission %+v; missing %v", r.Calibration.AtSubmission, missing(r))
+	}
+}
+
+// AHS results aren't counted yet: named, not a failed parse. The layout
+// (measurements as objects) is amazon-braket-schemas-python's
+// AnalogHamiltonianSimulationTaskResult; puff hasn't run AHS live.
+func TestRecordAHS(t *testing.T) {
+	tb, _ := price.Load()
+	created, ended := recordedAt.Add(-time.Hour), recordedAt.Add(-50*time.Minute)
+	g := &braketsdk.GetQuantumTaskOutput{
+		QuantumTaskArn: ptr("arn:aws:braket:us-east-1:000000000000:quantum-task/11111111-1111-4111-8111-111111111111"),
+		DeviceArn:      ptr("arn:aws:braket:us-east-1::device/qpu/quera/Aquila"), Status: types.QuantumTaskStatusCompleted,
+		Shots: ptr(int64(10)), CreatedAt: &created, EndedAt: &ended,
+		OutputS3Bucket: ptr("amazon-braket-us-east-1-000000000000"), OutputS3Directory: ptr("x/y"),
+	}
+	res := `{"braketSchemaHeader":{"name":"braket.task_result.analog_hamiltonian_simulation_task_result","version":"1"},` +
+		`"measurements":[{"shotMetadata":{"shotStatus":"Success"},"shotResult":{"preSequence":[1],"postSequence":[0]}}],` +
+		`"additionalMetadata":{"action":{"braketSchemaHeader":{"name":"braket.ir.ahs.program","version":"1"}}}}`
+	r, err := record.Build(context.Background(), record.Inputs{Task: g, Prices: tb, PuffVersion: "test", Now: func() time.Time { return recordedAt },
+		Get: func(_ context.Context, key string) (results.Object, error) {
+			if key == "x/y/results.json" {
+				return results.Object{Body: []byte(res)}, nil
+			}
+			return results.Object{}, results.ErrNotFound
+		},
+		Device: func(context.Context) (string, error) { return "{}", nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := record.Encode(r)
+	if p := record.Verify(b); len(p) > 0 {
+		t.Errorf("verify: %v", p)
+	}
+	if r.Program.Format != "ahs" || !strings.Contains(missing(r)["results"], "AHS") {
+		t.Errorf("format %s, missing %v", r.Program.Format, missing(r))
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
 func TestRecordUnfinished(t *testing.T) {
 	f := load(t, "cepheus-bell-100")
 	f.task.Status = types.QuantumTaskStatusFailed
@@ -299,36 +379,56 @@ func TestVerifyRejects(t *testing.T) {
 	caps := cepheusCaps(t)
 	f.submitted(t, caps)
 	good, _ := record.Encode(build(t, f, caps))
-	cases := map[string]func(map[string]any){
-		"wrong schema":     func(m map[string]any) { m["schema"] = "puffball.record/v9" },
-		"unknown field":    func(m map[string]any) { m["extra"] = 1 },
-		"no missing":       func(m map[string]any) { delete(m, "missing") },
-		"tampered source":  func(m map[string]any) { src(m)["text"] = "OPENQASM 3.0;" },
-		"tampered compile": func(m map[string]any) { m["compiled_programs"].([]any)[0].(map[string]any)["text"] = "HALT" },
-		"tampered calibration": func(m map[string]any) {
-			m["calibration"].(map[string]any)["at_completion"].(map[string]any)["qubits"] = map[string]any{}
-		},
-		"account in arn": func(m map[string]any) {
-			m["task"].(map[string]any)["arn"] = "arn:aws:braket:us-west-1:123456789012:quantum-task/x"
-		},
-		"empty missing reason": func(m map[string]any) {
-			m["missing"] = []any{map[string]any{"field": "x", "reason": ""}}
-		},
-		"bad count": func(m map[string]any) {
-			ex := m["results"].([]any)[0].(map[string]any)["executables"].([]any)[0].(map[string]any)
-			ex["counts"].(map[string]any)["11"] = "many"
-		},
+	decode := func(t *testing.T) map[string]any {
+		t.Helper()
+		dec := json.NewDecoder(strings.NewReader(string(good)))
+		dec.UseNumber()
+		var m map[string]any
+		if err := dec.Decode(&m); err != nil {
+			t.Fatal(err)
+		}
+		return m
 	}
-	for name, mut := range cases {
-		t.Run(name, func(t *testing.T) {
-			var m map[string]any
-			if err := json.Unmarshal(good, &m); err != nil {
-				t.Fatal(err)
-			}
-			mut(m)
+	// Baseline: a generic re-encode (keys sorted, HTML escaped, compact)
+	// still verifies; the hashes don't depend on the encoding.
+	b, _ := json.Marshal(decode(t))
+	if p := record.Verify(b); len(p) > 0 {
+		t.Fatalf("a re-encoded record doesn't verify: %v", p)
+	}
+	cal := func(m map[string]any) map[string]any {
+		return m["calibration"].(map[string]any)["at_completion"].(map[string]any)
+	}
+	exec0 := func(m map[string]any) map[string]any {
+		return m["results"].([]any)[0].(map[string]any)["executables"].([]any)[0].(map[string]any)
+	}
+	cases := []struct {
+		name, want string
+		mut        func(map[string]any)
+	}{
+		{"wrong schema", "$.schema", func(m map[string]any) { m["schema"] = "puffball.record/v9" }},
+		{"unknown field", `unknown field "extra"`, func(m map[string]any) { m["extra"] = 1 }},
+		{"no missing", `lacks required "missing"`, func(m map[string]any) { delete(m, "missing") }},
+		{"tampered source", "program.sources[0]: sha256", func(m map[string]any) { src(m)["text"] = "OPENQASM 3.0;" }},
+		{"tampered compile", "compiled_programs[0]: sha256", func(m map[string]any) { m["compiled_programs"].([]any)[0].(map[string]any)["text"] = "HALT" }},
+		{"tampered calibration", "calibration.at_completion: subset_sha256", func(m map[string]any) { cal(m)["qubits"] = map[string]any{} }},
+		{"tampered instruction", "calibration.at_completion: subset_sha256", func(m map[string]any) { cal(m)["instructions"] = map[string]any{} }},
+		{"account in arn", "$.task.arn", func(m map[string]any) {
+			m["task"].(map[string]any)["arn"] = "arn:aws:braket:us-west-1:123456789012:quantum-task/x"
+		}},
+		{"empty missing reason", "$.missing[0].reason", func(m map[string]any) { m["missing"] = []any{map[string]any{"field": "x", "reason": ""}} }},
+		{"bad count", "$.results[0].executables[0].counts.11", func(m map[string]any) { exec0(m)["counts"].(map[string]any)["11"] = "many" }},
+		{"counts don't add up", "counts add up to", func(m map[string]any) { exec0(m)["counts"].(map[string]any)["11"] = json.Number("1") }},
+		{"unnamed gap", "calibration.at_completion: empty or absent, and not named", func(m map[string]any) { delete(m["calibration"].(map[string]any), "at_completion") }},
+		{"unnamed cost", "cost: empty or absent", func(m map[string]any) { m["cost"] = nil }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := decode(t)
+			tc.mut(m)
 			b, _ := json.Marshal(m)
-			if p := record.Verify(b); len(p) == 0 {
-				t.Error("verified")
+			p := record.Verify(b)
+			if !strings.Contains(strings.Join(p, "\n"), tc.want) {
+				t.Errorf("problems %v; want one containing %q", p, tc.want)
 			}
 		})
 	}

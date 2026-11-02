@@ -388,7 +388,7 @@ func TestRunBraketStoresSubmission(t *testing.T) {
 	if _, errs, code := runPuff(t, args...); code != exitOK {
 		t.Fatalf("exit %d: %s", code, errs)
 	}
-	dir := "amazon-braket-us-west-1-" + fakeAccount + "/" + record.SubmissionDir("puffball/run-snap")
+	dir := "amazon-braket-us-west-1-" + fakeAccount + "/" + record.SubmissionDir("puffball/run-snap", "cepheus")
 	action, snapRaw := fr.objects[dir+record.ActionObject], fr.objects[dir+record.DeviceObject]
 	if string(action) != aws.ToString(rc.Calls[0].Action) {
 		t.Errorf("stored action %q differs from the submitted one", action)

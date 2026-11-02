@@ -140,10 +140,11 @@ type Calibrations struct {
 }
 
 // Calibration is the part of a capabilities document that covers the task's
-// physical qubits: per-qubit and per-pair properties
-// (standardized.oneQubitProperties, twoQubitProperties) and provider
-// benchmark sites on those qubits (provider.specs.benchmarks[].sites[]),
-// verbatim. CalibratedFrom and CalibratedTo span their timestamps.
+// physical qubits, verbatim: per-qubit and per-pair properties
+// (standardized.oneQubitProperties, twoQubitProperties), and provider
+// benchmark and instruction sites on those qubits
+// (provider.specs.benchmarks[], instructions[]). CalibratedFrom and
+// CalibratedTo span the timestamps of every provider site touching them.
 type Calibration struct {
 	Source         string                       `json:"source"`
 	ReadAt         time.Time                    `json:"read_at"`
@@ -153,8 +154,9 @@ type Calibration struct {
 	Qubits         map[string]json.RawMessage   `json:"qubits"`
 	Pairs          map[string]json.RawMessage   `json:"pairs"`
 	Benchmarks     map[string][]json.RawMessage `json:"benchmarks"`
-	// SubsetSHA256 is the SHA-256 of {"benchmarks","pairs","qubits"} as
-	// compact JSON with sorted keys (see [SubsetSum]).
+	Instructions   map[string][]json.RawMessage `json:"instructions"`
+	// SubsetSHA256 is the SHA-256 of qubits, pairs, benchmarks and
+	// instructions as canonical JSON (see [SubsetSum]).
 	SubsetSHA256 string `json:"subset_sha256"`
 }
 
@@ -197,6 +199,8 @@ type builder struct {
 	r      *Record
 	bucket string
 	dir    string
+	// reportedAction is the action results.json reports (single tasks).
+	reportedAction json.RawMessage
 }
 
 func (b *builder) miss(field, reason string) {
@@ -270,6 +274,14 @@ func Build(ctx context.Context, in Inputs) (*Record, error) {
 	b.calibration(ctx)
 	b.cost(ctx, resultsJSON)
 	sort.Ints(r.PhysicalQubits)
+	if len(r.PhysicalQubits) == 0 && len(r.CompiledPrograms) > 0 {
+		b.miss("physical_qubits", "the compiled program names no physical qubits puff can parse")
+	} else if len(r.PhysicalQubits) == 0 && !isSimulator(dev) {
+		b.miss("physical_qubits", "no compiled program to read them from")
+	}
+	for _, f := range Unfilled(r) {
+		b.miss(f, "not filled, for no reason the record could name")
+	}
 	return r, nil
 }
 
@@ -314,7 +326,7 @@ func (b *builder) parseResults(ctx context.Context, raw []byte) {
 	var top struct {
 		Header             json.RawMessage `json:"braketSchemaHeader"`
 		MeasuredQubits     []int           `json:"measuredQubits"`
-		Measurements       [][]int         `json:"measurements"`
+		Measurements       json.RawMessage `json:"measurements"`
 		ProgramResults     []string        `json:"programResults"`
 		TaskMetadata       json.RawMessage `json:"taskMetadata"`
 		AdditionalMetadata struct {
@@ -327,7 +339,7 @@ func (b *builder) parseResults(ctx context.Context, raw []byte) {
 		} `json:"additionalMetadata"`
 	}
 	if err := json.Unmarshal(raw, &top); err != nil {
-		b.miss("results", "results.json is not JSON: "+err.Error())
+		b.miss("results", "results.json doesn't have the gate-model result layout puff reads: "+err.Error())
 		b.programFromMetadata()
 		return
 	}
@@ -341,6 +353,7 @@ func (b *builder) parseResults(ctx context.Context, raw []byte) {
 		Header json.RawMessage `json:"braketSchemaHeader"`
 		Source string          `json:"source"`
 	}
+	b.reportedAction = top.AdditionalMetadata.Action
 	if len(top.AdditionalMetadata.Action) > 0 && json.Unmarshal(top.AdditionalMetadata.Action, &action) == nil {
 		var h header
 		_ = json.Unmarshal(action.Header, &h)
@@ -357,11 +370,16 @@ func (b *builder) parseResults(ctx context.Context, raw []byte) {
 	} else {
 		b.miss("program.sources", "results.json additionalMetadata.action has no source")
 	}
-	if top.Measurements == nil {
+	var ms [][]int
+	switch {
+	case b.r.Program.Format == "ahs":
+		b.miss("results", "AHS results (shotMetadata/shotResult per shot) aren't counted by puff yet")
+	case top.Measurements == nil:
 		b.miss("results", "results.json has no measurements")
-		b.miss("shots.measured", "no measurements")
-	} else {
-		ex := counts(0, top.MeasuredQubits, top.Measurements)
+	case json.Unmarshal(top.Measurements, &ms) != nil:
+		b.miss("results", "results.json measurements aren't lists of bits")
+	default:
+		ex := counts(0, top.MeasuredQubits, ms)
 		b.r.Results = append(b.r.Results, ProgramResult{Program: 0, Executables: []ExecutableResult{ex}})
 		b.r.Shots.Measured = ex.Shots
 	}
@@ -413,7 +431,9 @@ func (b *builder) programSet(ctx context.Context, programs []string, meta json.R
 			continue
 		}
 		b.header(pr.Header)
-		if pr.Source != "" {
+		if pr.Source == "" {
+			b.miss(fmt.Sprintf("program.sources[%d]", i), p+" names no program source")
+		} else {
 			if src, err := b.get(ctx, pdir+pr.Source, "program"); err != nil {
 				b.miss(fmt.Sprintf("program.sources[%d]", i), pr.Source+": "+err.Error())
 			} else {
@@ -447,6 +467,9 @@ func (b *builder) programSet(ctx context.Context, programs []string, meta json.R
 				MeasuredQubits []int           `json:"measuredQubits"`
 				Measurements   [][]int         `json:"measurements"`
 			}
+			if len(pr.Executables) == 0 {
+				break
+			}
 			if err := json.Unmarshal(eraw, &ex); err != nil || ex.Measurements == nil {
 				b.miss(fmt.Sprintf("results[%d].executables[%d]", i, j), e+" has no measurements")
 				continue
@@ -455,6 +478,9 @@ func (b *builder) programSet(ctx context.Context, programs []string, meta json.R
 			er := counts(j, ex.MeasuredQubits, ex.Measurements)
 			res.Executables = append(res.Executables, er)
 			b.r.Shots.Measured += er.Shots
+		}
+		if len(res.Executables) == 0 && len(pr.Executables) == 0 {
+			b.miss(fmt.Sprintf("results[%d].executables", i), p+" lists no executables")
 		}
 		b.r.Results = append(b.r.Results, res)
 	}
@@ -530,16 +556,31 @@ func (b *builder) submission(ctx context.Context) {
 		}
 		return
 	}
-	dir := SubmissionDir(results.Prefix + b.r.Task.RunID)
-	if raw, err := b.get(ctx, dir+ActionObject, "submitted-action"); err != nil {
+	d, err := b.in.Prices.Lookup(b.r.Device.Arn)
+	if err != nil {
+		reason := "the device has no alias in the price table, so its submission directory isn't known"
+		b.miss("program.submitted_action_sha256", reason)
+		if !sim {
+			b.miss("calibration.at_submission", reason)
+		}
+		return
+	}
+	dir := SubmissionDir(results.Prefix+b.r.Task.RunID, d.Alias)
+	raw, err := b.get(ctx, dir+ActionObject, "submitted-action")
+	switch {
+	case err != nil:
 		b.miss("program.submitted_action_sha256", dir+ActionObject+": "+err.Error())
-	} else {
+	case len(b.reportedAction) > 0 && !sameJSON(raw, b.reportedAction):
+		b.miss("program.submitted_action_sha256", dir+ActionObject+" differs from the action results.json reports, so it isn't this task's")
+	case !b.sameProgram(raw):
+		b.miss("program.submitted_action_sha256", dir+ActionObject+" isn't the program the results report (action type or sources differ), so it isn't this task's")
+	default:
 		b.r.Program.SubmittedSHA256 = Sum(raw)
 	}
 	if sim {
 		return // calibration names why simulators have none
 	}
-	raw, err := b.get(ctx, dir+DeviceObject, "device-at-submission")
+	raw, err = b.get(ctx, dir+DeviceObject, "device-at-submission")
 	if err != nil {
 		b.miss("calibration.at_submission", dir+DeviceObject+": "+err.Error())
 		return
@@ -552,6 +593,13 @@ func (b *builder) submission(ctx context.Context) {
 	if s.DeviceArn != b.r.Device.Arn {
 		b.miss("calibration.at_submission", "the snapshot is of "+s.DeviceArn+", not the task's device")
 		return
+	}
+	if created := b.r.Task.CreatedAt; created != nil {
+		if s.ReadAt.After(*created) || created.Sub(s.ReadAt) > SnapshotMaxAge {
+			b.miss("calibration.at_submission", fmt.Sprintf("the snapshot was read at %s and the task created at %s; more than %s apart, it is an earlier attempt's, not this submission's",
+				s.ReadAt.Format(time.RFC3339), created.Format(time.RFC3339), SnapshotMaxAge))
+			return
+		}
 	}
 	c, err := subset(s.Capabilities, b.r.PhysicalQubits)
 	if err != nil {
@@ -614,8 +662,12 @@ func (b *builder) cost(ctx context.Context, resultsJSON []byte) {
 		CreatedAt: g.CreatedAt, EndedAt: g.EndedAt, OutputS3Bucket: g.OutputS3Bucket, OutputS3Directory: g.OutputS3Directory, Tags: g.Tags}
 	o := ledger.Options{Prices: b.in.Prices, Reader: memReader(resultsJSON), Account: func(context.Context) (string, error) { return "", nil }}
 	l, err := ledger.Build(ctx, []braket.Task{{Region: b.r.Task.Region, Summary: sum}}, o)
-	if err != nil || len(l.Lines) != 1 {
-		b.miss("cost", fmt.Sprintf("ledger: %v", err))
+	if err != nil {
+		b.miss("cost", "ledger: "+err.Error())
+		return
+	}
+	if len(l.Lines) != 1 {
+		b.miss("cost", "the ledger didn't price the task")
 		return
 	}
 	ln := l.Lines[0]
@@ -639,6 +691,44 @@ func (m memReader) Read(context.Context, string, string, string, string, int64) 
 		return results.Object{}, errors.New("results.json wasn't read")
 	}
 	return results.Object{Body: m}, nil
+}
+
+// sameProgram reports whether a stored action is the program the results
+// report: the same action type, and the same sources in order (a single
+// program's source, or each of a program set's programs).
+func (b *builder) sameProgram(action []byte) bool {
+	var a struct {
+		Header   header `json:"braketSchemaHeader"`
+		Source   string `json:"source"`
+		Programs []struct {
+			Source string `json:"source"`
+		} `json:"programs"`
+	}
+	if json.Unmarshal(action, &a) != nil || a.Header.Name != b.r.Program.ActionType {
+		return false
+	}
+	var srcs []string
+	if a.Source != "" {
+		srcs = append(srcs, a.Source)
+	}
+	for _, p := range a.Programs {
+		srcs = append(srcs, p.Source)
+	}
+	if len(srcs) != len(b.r.Program.Sources) {
+		return false
+	}
+	for i, t := range b.r.Program.Sources {
+		if t.Text != srcs[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func sameJSON(a, b []byte) bool {
+	ca, ea := Canonical(json.RawMessage(a))
+	cb, eb := Canonical(json.RawMessage(b))
+	return ea == nil && eb == nil && string(ca) == string(cb)
 }
 
 func text(i int, f, s string) Text {

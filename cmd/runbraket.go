@@ -313,7 +313,7 @@ func runOnBraket(cmd *cobra.Command, program string, src []byte, sum string) err
 	// What puff record needs that the service doesn't keep: the action as
 	// submitted and the device's calibration at submission (#42). Never
 	// overwritten, so a retry keeps the first attempt's.
-	if err := storeSubmission(ctx, store, region, bucket, prefix, d, action, collectedAt); err != nil {
+	if err := storeSubmission(ctx, store, region, bucket, prefix, pd.Alias, d, action, collectedAt); err != nil {
 		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: the submission snapshot wasn't stored (%v); puff record will name calibration.at_submission missing\n", scrub.Error(err))
 	}
 	s, err := permit.Submit(ctx, region, key, braketsdk.CreateQuantumTaskInput{
@@ -390,8 +390,10 @@ func writeBraketRun(cmd *cobra.Command, r braketRun) error {
 }
 
 // storeSubmission writes the submitted action and a snapshot of the device,
-// as read just before submission, under <prefix>/submission/.
-func storeSubmission(ctx context.Context, store results.Store, region, bucket, prefix string, d devices.Device, action string, readAt time.Time) error {
+// as read just before submission, under <prefix>/submission/<alias>/. An
+// existing object is kept: it is an earlier attempt of the same gate key,
+// whose input the gate holds identical.
+func storeSubmission(ctx context.Context, store results.Store, region, bucket, prefix, alias string, d devices.Device, action string, readAt time.Time) error {
 	snap, err := record.NewSnapshot(d.Arn, region, d.Capabilities, readAt)
 	if err != nil {
 		return err
@@ -400,7 +402,7 @@ func storeSubmission(ctx context.Context, store results.Store, region, bucket, p
 	if err != nil {
 		return fmt.Errorf("account: %w", err)
 	}
-	dir := record.SubmissionDir(prefix)
+	dir := record.SubmissionDir(prefix, alias)
 	if _, err := store.PutNew(ctx, region, bucket, dir+record.ActionObject, acct, []byte(action)); err != nil {
 		return err
 	}
