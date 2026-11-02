@@ -1,0 +1,13 @@
+# Codecov reports coverage on every PR but never fails one. The enforced
+# gate is the CI workflow's coverage floor (ci.yml, "Coverage gate"; 60%,
+# per CLAUDE.md). Without this file Codecov's patch target is the project's
+# current coverage, which rises with every well-tested PR and so keeps
+# moving the bar (Scott, 2026-11-01).
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
