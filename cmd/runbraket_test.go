@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/spf13/cobra"
 
 	"github.com/spore-host/puffball/pkg/awscfg"
 	"github.com/spore-host/puffball/pkg/gate"
+	"github.com/spore-host/puffball/pkg/record"
 	"github.com/spore-host/puffball/pkg/results"
 	"github.com/spore-host/puffball/pkg/testutil"
 )
@@ -23,6 +25,9 @@ const fakeAccount = "123456789012"
 type fakeResults struct {
 	exists  bool
 	created []string
+	// objects holds what PutNew wrote, by bucket/key; putErr fails it.
+	objects map[string][]byte
+	putErr  error
 }
 
 func (f *fakeResults) Account(context.Context) (string, error) { return fakeAccount, nil }
@@ -32,6 +37,20 @@ func (f *fakeResults) Exists(context.Context, string, string, string) (bool, err
 func (f *fakeResults) Create(_ context.Context, region, bucket string) error {
 	f.created = append(f.created, region+" "+bucket)
 	return nil
+}
+
+func (f *fakeResults) PutNew(_ context.Context, _, bucket, key, _ string, body []byte) (bool, error) {
+	if f.putErr != nil {
+		return false, f.putErr
+	}
+	if f.objects == nil {
+		f.objects = map[string][]byte{}
+	}
+	if _, ok := f.objects[bucket+"/"+key]; ok {
+		return false, nil
+	}
+	f.objects[bucket+"/"+key] = body
+	return true, nil
 }
 
 // braketHarness wires run --device to the G0 fixtures, a recording creator,
@@ -359,4 +378,42 @@ func TestRunBraketAHS(t *testing.T) {
 	if len(rc.Calls) != 0 {
 		t.Error("a task was created without --real")
 	}
+}
+
+// A --real run stores the action as submitted and the device as read before
+// submission, for puff record (#42); a retry never replaces them.
+func TestRunBraketStoresSubmission(t *testing.T) {
+	rc, fr := braketHarness(t, true)
+	args := []string{"run", bellQASM, "--device", "cepheus", "--shots", "100", "--real", "--run-id", "run-snap"}
+	if _, errs, code := runPuff(t, args...); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errs)
+	}
+	dir := "amazon-braket-us-west-1-" + fakeAccount + "/" + record.SubmissionDir("puffball/run-snap")
+	action, snapRaw := fr.objects[dir+record.ActionObject], fr.objects[dir+record.DeviceObject]
+	if string(action) != aws.ToString(rc.Calls[0].Action) {
+		t.Errorf("stored action %q differs from the submitted one", action)
+	}
+	s, err := record.ParseSnapshot(snapRaw)
+	if err != nil || s.DeviceArn != "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q" || !strings.Contains(s.Capabilities, "oneQubitProperties") {
+		t.Fatalf("snapshot %v: %.200s", err, snapRaw)
+	}
+	// A retry with the same run id keeps the first snapshot.
+	fixedNow(t, time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC))
+	if _, errs, code := runPuff(t, args...); code != exitOK {
+		t.Fatalf("retry exit %d: %s", code, errs)
+	}
+	if string(fr.objects[dir+record.DeviceObject]) != string(snapRaw) {
+		t.Error("a retry replaced the submission snapshot")
+	}
+}
+
+// A snapshot that can't be stored is a warning: the task is still submitted.
+func TestRunBraketSubmissionStoreFails(t *testing.T) {
+	rc, fr := braketHarness(t, true)
+	fr.putErr = errors.New("AccessDenied for " + fakeAccount)
+	_, errs, code := runPuff(t, "run", bellQASM, "--device", "cepheus", "--shots", "100", "--real")
+	if code != exitOK || len(rc.Calls) != 1 || !strings.Contains(errs, "submission snapshot wasn't stored") {
+		t.Errorf("exit %d, %d creates: %s", code, len(rc.Calls), errs)
+	}
+	noAccount(t, errs)
 }

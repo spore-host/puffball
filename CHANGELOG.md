@@ -50,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on gate devices and AHS (`.json`) on analog ones. For SV1 and DM1 the
   estimate is the minimum charge, and `--budget` needs `--duration`; with
   `--device-region` you choose the region. `--json` is supported.
+- **`puff run --device ... --real`** also stores two objects beside the
+  results, under `puffball/<run-id>/submission/`: the action JSON as
+  submitted, and the device's capabilities as read just before submission.
+  `puff record` uses them. They are never overwritten, so a retry keeps the
+  first attempt's. If they can't be stored, the run warns and goes on.
 - **`puff ls`** lists quantum tasks in every Braket region, including tasks
   that puff didn't submit (their project and run id show `-`). Filters:
   `--state` (repeatable), `--since` (default 30 days; `0` for all),
@@ -101,6 +106,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ID). Deleting the cache loses nothing, and `--no-cache` skips it.
   - Every figure is labelled an estimate with the price date. `--json` is
     supported.
+- **`puff record <task>`** writes the provenance record for a task's
+  result as `puffball.record/v0` JSON, to stdout or `--out` (an existing file
+  isn't overwritten without `--force`). The record holds:
+  - device, program sources, shots and counts (each program and executable
+    of a program set);
+  - the physical qubits and compiled program (Quil, or OpenQASM 3 for
+    program sets);
+  - the device's calibration for those qubits at submission and at
+    completion;
+  - the estimated cost with its price date, software and result-schema
+    versions, and tags;
+  - the S3 key, ETag and SHA-256 of every object it read.
+
+  Anything it couldn't fill is named in `missing[]` with the reason, and
+  listed on stderr. The calibration at completion counts only if the
+  qubits weren't recalibrated after the task ended. Otherwise the later
+  calibration is kept as `at_record`, labelled. Account IDs appear as
+  `<account>`. The JSON Schema ships in `pkg/record/schema/`.
+- **`puff record verify <file>`** checks a record offline against the
+  schema and recomputes the SHA-256 of its sources, compiled programs and
+  calibration subsets. Exit 1 lists each problem; `--json` is supported.
 
 ### Changed
 - **Repo tooling only, no change to `puff`:** G0 API probes (`make probe`,

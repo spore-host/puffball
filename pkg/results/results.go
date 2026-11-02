@@ -8,10 +8,12 @@
 package results
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -33,6 +35,10 @@ type Store interface {
 	Exists(ctx context.Context, region, bucket, account string) (bool, error)
 	// Create creates bucket in region.
 	Create(ctx context.Context, region, bucket string) error
+	// PutNew writes key in bucket, owned by account, only if no object is
+	// there yet, so a retry never replaces what the first attempt wrote.
+	// created is false when one was already there.
+	PutNew(ctx context.Context, region, bucket, key, account string, body []byte) (created bool, err error)
 }
 
 // BucketName is the SDK's default results bucket for region and account.
@@ -149,30 +155,65 @@ func (a AWS) Create(ctx context.Context, region, bucket string) error {
 type Reader interface {
 	// Read returns bucket/key from region, refusing a bucket account doesn't
 	// own and an object larger than limit bytes ([ErrTooLarge]).
-	Read(ctx context.Context, region, bucket, key, account string, limit int64) ([]byte, error)
+	Read(ctx context.Context, region, bucket, key, account string, limit int64) (Object, error)
 }
+
+// Object is a result object as read: its bytes as stored, and its ETag.
+type Object struct {
+	Body []byte
+	ETag string
+}
+
+// ErrNotFound is returned by Read when there is no such object.
+var ErrNotFound = errors.New("no such object")
 
 // ErrTooLarge is returned by Read for an object over its limit.
 var ErrTooLarge = errors.New("result object is larger than puff reads")
 
 // Read calls S3 GetObject with ExpectedBucketOwner, so an object in a
 // same-named bucket of another account is never read (S3 answers 403).
-func (a AWS) Read(ctx context.Context, region, bucket, key, account string, limit int64) ([]byte, error) {
+func (a AWS) Read(ctx context.Context, region, bucket, key, account string, limit int64) (Object, error) {
 	cfg, err := a.config(ctx, region)
 	if err != nil {
-		return nil, err
+		return Object{}, err
 	}
 	out, err := a.s3(cfg).GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key), ExpectedBucketOwner: aws.String(account)})
+	var nsk *s3types.NoSuchKey
+	if errors.As(err, &nsk) {
+		return Object{}, ErrNotFound
+	}
 	if err != nil {
-		return nil, fmt.Errorf("GetObject: %w", err)
+		return Object{}, fmt.Errorf("GetObject: %w", err)
 	}
 	defer func() { _ = out.Body.Close() }()
 	b, err := io.ReadAll(io.LimitReader(out.Body, limit+1))
 	if err != nil {
-		return nil, fmt.Errorf("GetObject: read body: %w", err)
+		return Object{}, fmt.Errorf("GetObject: read body: %w", err)
 	}
 	if int64(len(b)) > limit {
-		return nil, fmt.Errorf("%w (%d bytes)", ErrTooLarge, limit)
+		return Object{}, fmt.Errorf("%w (%d bytes)", ErrTooLarge, limit)
 	}
-	return b, nil
+	return Object{Body: b, ETag: aws.ToString(out.ETag)}, nil
+}
+
+// PutNew calls S3 PutObject with If-None-Match: * and ExpectedBucketOwner.
+// S3 answers 412 PreconditionFailed when the key exists; that is
+// created=false, not an error.
+func (a AWS) PutNew(ctx context.Context, region, bucket, key, account string, body []byte) (bool, error) {
+	cfg, err := a.config(ctx, region)
+	if err != nil {
+		return false, err
+	}
+	_, err = a.s3(cfg).PutObject(ctx, &s3.PutObjectInput{Bucket: aws.String(bucket), Key: aws.String(key),
+		Body: bytes.NewReader(body), ContentType: aws.String("application/json"),
+		IfNoneMatch: aws.String("*"), ExpectedBucketOwner: aws.String(account)})
+	var re interface{ HTTPStatusCode() int }
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.As(err, &re) && re.HTTPStatusCode() == http.StatusPreconditionFailed:
+		return false, nil
+	default:
+		return false, fmt.Errorf("PutObject: %w", err)
+	}
 }

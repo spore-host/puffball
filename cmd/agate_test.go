@@ -166,3 +166,8 @@ func (f failingResults) Create(context.Context, string, string) error {
 	f.t.Error("S3 CreateBucket called before the gate approved")
 	return errors.New("no")
 }
+
+func (f failingResults) PutNew(context.Context, string, string, string, string, []byte) (bool, error) {
+	f.t.Error("S3 PutObject called before the gate approved")
+	return false, errors.New("no")
+}

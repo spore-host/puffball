@@ -1,0 +1,382 @@
+{
+  "schema": "puffball.record/v0",
+  "recorded_at": "2026-10-31T12:00:00Z",
+  "task": {
+    "id": "a543ab67-6545-4cf0-8bbe-55f55bef1aa6",
+    "arn": "arn:aws:braket:us-west-1:<account>:quantum-task/a543ab67-6545-4cf0-8bbe-55f55bef1aa6",
+    "region": "us-west-1",
+    "status": "COMPLETED",
+    "created_at": "2026-10-28T16:56:08.969Z",
+    "ended_at": "2026-10-28T16:58:04.515Z",
+    "run_id": "g0c-1a1fdca0",
+    "project": "puffball-g0"
+  },
+  "device": {
+    "name": "Cepheus-1-108Q",
+    "provider": "rigetti",
+    "arn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q"
+  },
+  "program": {
+    "format": "openqasm3-program-set",
+    "action_type": "braket.ir.openqasm.program_set",
+    "sources": [
+      {
+        "program": 0,
+        "format": "openqasm3",
+        "text": "OPENQASM 3.0;\nbit[2] b;\nqubit[2] q;\nh q[0];\ncnot q[0], q[1];\nb[0] = measure q[0];\nb[1] = measure q[1];",
+        "sha256": "b005e4add0e060b899bafa9fa942cb7161e1c64be49ed476a50338aa38879281"
+      },
+      {
+        "program": 1,
+        "format": "openqasm3",
+        "text": "OPENQASM 3.0;\nbit[2] b;\nqubit[2] q;\nh q[0];\ncnot q[0], q[1];\nx q[1];\nb[0] = measure q[0];\nb[1] = measure q[1];",
+        "sha256": "32ccc426a602eb5c4080a27d9b852e467152461414041cc3e0db000c183ce61b"
+      }
+    ]
+  },
+  "shots": {
+    "requested": 200,
+    "measured": 200,
+    "successful": 200
+  },
+  "physical_qubits": [
+    81,
+    90
+  ],
+  "results": [
+    {
+      "program": 0,
+      "executables": [
+        {
+          "executable": 0,
+          "measured_qubits": [
+            0,
+            1
+          ],
+          "shots": 100,
+          "counts": {
+            "00": 53,
+            "01": 3,
+            "10": 4,
+            "11": 40
+          }
+        }
+      ]
+    },
+    {
+      "program": 1,
+      "executables": [
+        {
+          "executable": 0,
+          "measured_qubits": [
+            0,
+            1
+          ],
+          "shots": 100,
+          "counts": {
+            "00": 4,
+            "01": 53,
+            "10": 33,
+            "11": 10
+          }
+        }
+      ]
+    }
+  ],
+  "compiled_programs": [
+    {
+      "program": 0,
+      "format": "openqasm3",
+      "text": "OPENQASM 3.0;\nbit[2] c;\n#pragma braket verbatim\nbox {\nrz(0.5*pi) $81;\nrz(1.0*pi) $90;\nrx(0.5*pi) $81;\nrx(0.5*pi) $90;\nrz(0.5*pi) $81;\nrz(0.5*pi) $90;\nrx(-0.5*pi) $90;\ncz $81,$90;\nrz(1.0*pi) $90;\nrx(0.5*pi) $90;\nrz(0.5*pi) $90;\nrx(-0.5*pi) $90;\n}\nc[0] = measure $81;\nc[1] = measure $90;",
+      "sha256": "236ed9d586465e5393ce3cc110a79bcffefd51fbe8e388f0f1a65f808c68b883"
+    },
+    {
+      "program": 1,
+      "format": "openqasm3",
+      "text": "OPENQASM 3.0;\nbit[2] c;\n#pragma braket verbatim\nbox {\nrz(0.5*pi) $81;\nrx(0.5*pi) $90;\nrx(0.5*pi) $81;\nrx(0.5*pi) $90;\nrz(0.5*pi) $81;\nrz(1.0*pi) $90;\nrx(0.5*pi) $90;\nrz(0.5*pi) $90;\nrx(-0.5*pi) $90;\ncz $81,$90;\nrz(1.0*pi) $90;\nrx(0.5*pi) $90;\nrz(0.5*pi) $90;\nrx(-0.5*pi) $90;\n}\nc[0] = measure $81;\nc[1] = measure $90;",
+      "sha256": "535cab2d0bb6e0ddfa228c04bf90bc4f30bbd0b3ad4c04398a030d72193b8685"
+    }
+  ],
+  "calibration": {
+    "at_completion": {
+      "source": "GetDevice when the record was made",
+      "read_at": "2026-10-31T12:00:00Z",
+      "device_capabilities_sha256": "b6aa60e019ad3bda8b9068064e88e7b93332c4804a9001aa4372289d37b3f04f",
+      "calibrated_from": "2026-10-24T14:19:27Z",
+      "calibrated_to": "2026-10-24T14:21:35Z",
+      "qubits": {
+        "81": {
+          "T1": {
+            "value": 2.2455568981394336e-05,
+            "unit": "S"
+          },
+          "T2": {
+            "value": 1.802719737775682e-05,
+            "unit": "S"
+          },
+          "oneQubitFidelity": [
+            {
+              "fidelityType": {
+                "name": "RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9991957710173444,
+              "standardError": 6.120941003396146e-06
+            },
+            {
+              "fidelityType": {
+                "name": "SIMULTANEOUS_RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9983993278645692,
+              "standardError": 8.300909890359537e-05
+            },
+            {
+              "fidelityType": {
+                "name": "READOUT"
+              },
+              "fidelity": 0.979
+            }
+          ]
+        },
+        "90": {
+          "T1": {
+            "value": 4.255322934887395e-05,
+            "unit": "S"
+          },
+          "T2": {
+            "value": 2.1206438850507325e-05,
+            "unit": "S"
+          },
+          "oneQubitFidelity": [
+            {
+              "fidelityType": {
+                "name": "RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9992871301601948,
+              "standardError": 8.744283231744802e-05
+            },
+            {
+              "fidelityType": {
+                "name": "SIMULTANEOUS_RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9988778510407418,
+              "standardError": 0.0002000855474034151
+            },
+            {
+              "fidelityType": {
+                "name": "READOUT"
+              },
+              "fidelity": 0.986
+            }
+          ]
+        }
+      },
+      "pairs": {
+        "81-90": {
+          "twoQubitGateFidelity": [
+            {
+              "gateName": "CZ",
+              "fidelity": 0.9932660643495208,
+              "standardError": 0.001209458798244524,
+              "fidelityType": {
+                "name": "INTERLEAVED_RANDOMIZED_BENCHMARKING"
+              }
+            }
+          ]
+        }
+      },
+      "benchmarks": {
+        "FreeInductionDecay": [
+          {
+            "characteristics": [
+              {
+                "error": 2.1690968875675192e-06,
+                "name": "T2",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:19:42Z",
+                "value": 2.1206438850507325e-05
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "error": 1.202834416841133e-06,
+                "name": "T2",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:21:31Z",
+                "value": 1.802719737775682e-05
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          }
+        ],
+        "FreeInversionRecovery": [
+          {
+            "characteristics": [
+              {
+                "error": 3.1083705921864567e-06,
+                "name": "T1",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:19:33Z",
+                "value": 4.255322934887395e-05
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "error": 1.3643167487336984e-06,
+                "name": "T1",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:21:35Z",
+                "value": 2.2455568981394336e-05
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          }
+        ],
+        "randomized_benchmark_1q": [
+          {
+            "characteristics": [
+              {
+                "error": 6.120941003396146e-06,
+                "name": "fRB",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:21:23Z",
+                "value": 0.9991957710173444
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "error": 8.744283231744802e-05,
+                "name": "fRB",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:19:27Z",
+                "value": 0.9992871301601948
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          }
+        ]
+      },
+      "subset_sha256": "0e4560de6a577abe866ecdd9406ff130586fd1b0d0e8327227f403235ae259ee"
+    }
+  },
+  "cost": {
+    "kind": "estimate",
+    "prices_as_of": "2026-10",
+    "estimate_usd": "$0.385",
+    "arithmetic": "$0.30 + 200 x $0.000425 = $0.385",
+    "per_task_usd": "$0.30",
+    "per_shot_usd": "$0.000425"
+  },
+  "software": {
+    "braket.ir.openqasm.program": "1",
+    "braket.task_result.program_result": "1",
+    "braket.task_result.program_set_executable_result": "1",
+    "braket.task_result.program_set_task_result": "1",
+    "braket.task_result.rigetti_metadata": "1",
+    "github.com/aws/aws-sdk-go-v2/service/braket": "normalized",
+    "go": "normalized",
+    "puff": "test"
+  },
+  "tags": {
+    "puffball:est-usd": "0.385",
+    "puffball:project": "puffball-g0",
+    "puffball:run-id": "g0c-1a1fdca0",
+    "puffball:rung": "qpu"
+  },
+  "objects": [
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6/results.json",
+      "etag": "\"0128213b3220914655d87c31739754d0\"",
+      "bytes": 366,
+      "sha256": "0128213b3220914655d87c31739754d08e43581baf8904ded60ad354b0056270",
+      "role": "results"
+    },
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6/metadata.json",
+      "etag": "\"a62b37f80e96d8c49c43df91b4e87f93\"",
+      "bytes": 645,
+      "sha256": "a62b37f80e96d8c49c43df91b4e87f93b54393ac92e6766d3f6c80bef3437332",
+      "role": "metadata"
+    },
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6/programs/0/results.json",
+      "etag": "\"48543f647149939b16251e4ef934dfd6\"",
+      "bytes": 695,
+      "sha256": "48543f647149939b16251e4ef934dfd60720f99c950f90b0f39bb309bc5a0bcc",
+      "role": "results"
+    },
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6/programs/0/program.json",
+      "etag": "\"884a668497e1d8398a65b54b8291a8b7\"",
+      "bytes": 235,
+      "sha256": "884a668497e1d8398a65b54b8291a8b7c1c94b4c236e6e7904ed60e19c8195c6",
+      "role": "program"
+    },
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6/programs/0/executables/0.json",
+      "etag": "\"58d150700eb08e9f81c0162c0b84c599\"",
+      "bytes": 3201,
+      "sha256": "58d150700eb08e9f81c0162c0b84c599d2515b88245e93e25bc88f2c7f822851",
+      "role": "executable"
+    },
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6/programs/1/results.json",
+      "etag": "\"fd0e0d8d51125d70834d0e558f6e96a8\"",
+      "bytes": 729,
+      "sha256": "fd0e0d8d51125d70834d0e558f6e96a82a486ff0ac49b78e1fb82f40438de018",
+      "role": "results"
+    },
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6/programs/1/program.json",
+      "etag": "\"77b649d10dc0116c5c9c7ab6e169335a\"",
+      "bytes": 244,
+      "sha256": "77b649d10dc0116c5c9c7ab6e169335acfbdd80178bbdd0146bc57d905985ddf",
+      "role": "program"
+    },
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/a543ab67-6545-4cf0-8bbe-55f55bef1aa6/programs/1/executables/0.json",
+      "etag": "\"1e26b3da98246999ec4e0fa576034a3a\"",
+      "bytes": 3201,
+      "sha256": "1e26b3da98246999ec4e0fa576034a3a5c7260211d5d46d2e9e96b4696158891",
+      "role": "executable"
+    }
+  ],
+  "missing": [
+    {
+      "field": "program.submitted_action_sha256",
+      "reason": "puffball/g0c-1a1fdca0/submission/action.json: not stored"
+    },
+    {
+      "field": "calibration.at_submission",
+      "reason": "puffball/g0c-1a1fdca0/submission/device.json: not stored"
+    }
+  ]
+}

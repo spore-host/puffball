@@ -23,6 +23,10 @@ func (f *fakeStore) Account(context.Context) (string, error) { return f.account,
 func (f *fakeStore) Exists(context.Context, string, string, string) (bool, error) {
 	return f.exists, f.existsErr
 }
+func (f *fakeStore) PutNew(context.Context, string, string, string, string, []byte) (bool, error) {
+	return true, nil
+}
+
 func (f *fakeStore) Create(_ context.Context, region, bucket string) error {
 	if f.createErr != nil {
 		return f.createErr
@@ -76,6 +80,14 @@ func awsServer(t *testing.T, headStatus int, createCode string) (*httptest.Serve
 			_, _ = io.WriteString(w, `<GetCallerIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/"><GetCallerIdentityResult><Account>123456789012</Account><Arn>arn:aws:iam::123456789012:user/x</Arn><UserId>X</UserId></GetCallerIdentityResult><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></GetCallerIdentityResponse>`)
 		case r.Method == http.MethodHead:
 			w.WriteHeader(headStatus)
+		case r.Method == http.MethodPut && r.Header.Get("If-None-Match") == "*" && strings.HasSuffix(r.URL.Path, "/exists"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusPreconditionFailed)
+			_, _ = io.WriteString(w, `<Error><Code>PreconditionFailed</Code><Message>m</Message></Error>`)
+		case r.Method == http.MethodPut && r.Header.Get("If-None-Match") == "*" && r.Header.Get("X-Amz-Expected-Bucket-Owner") != "123456789012":
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = io.WriteString(w, `<Error><Code>AccessDenied</Code><Message>m</Message></Error>`)
 		case r.Method == http.MethodPut && createCode != "":
 			w.Header().Set("Content-Type", "application/xml")
 			w.WriteHeader(http.StatusConflict)
@@ -86,7 +98,12 @@ func awsServer(t *testing.T, headStatus int, createCode string) (*httptest.Serve
 			w.Header().Set("Content-Type", "application/xml")
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = io.WriteString(w, `<Error><Code>AccessDenied</Code><Message>m</Message></Error>`)
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/absent"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `<Error><Code>NoSuchKey</Code><Message>m</Message></Error>`)
 		case r.Method == http.MethodGet:
+			w.Header().Set("ETag", `"e1"`)
 			_, _ = io.WriteString(w, `{"additionalMetadata":{}}`)
 		default:
 			w.WriteHeader(http.StatusBadRequest)
@@ -157,17 +174,41 @@ func TestAWSRead(t *testing.T) {
 	ctx := context.Background()
 	srv, seen := awsServer(t, http.StatusOK, "")
 	a := AWS{Endpoint: srv.URL}
-	b, err := a.Read(ctx, "us-west-1", "b", "puffball/r/t/results.json", "123456789012", 1<<20)
-	if err != nil || string(b) != `{"additionalMetadata":{}}` {
-		t.Fatalf("Read = %q, %v", b, err)
+	o, err := a.Read(ctx, "us-west-1", "b", "puffball/r/t/results.json", "123456789012", 1<<20)
+	if err != nil || string(o.Body) != `{"additionalMetadata":{}}` || o.ETag != `"e1"` {
+		t.Fatalf("Read = %q %q, %v", o.Body, o.ETag, err)
 	}
 	if last := (*seen)[len(*seen)-1]; !strings.Contains(last, "GET /b/puffball/r/t/results.json owner=123456789012") {
 		t.Errorf("GetObject without ExpectedBucketOwner: %s", last)
+	}
+	if _, err := a.Read(ctx, "us-west-1", "b", "absent", "123456789012", 5); !errors.Is(err, ErrNotFound) {
+		t.Errorf("NoSuchKey: %v", err)
 	}
 	if _, err := a.Read(ctx, "us-west-1", "b", "k", "123456789012", 5); !errors.Is(err, ErrTooLarge) {
 		t.Errorf("over the limit: %v", err)
 	}
 	if _, err := a.Read(ctx, "us-west-1", "b", "k", "210987654321", 1<<20); err == nil {
 		t.Error("another account's bucket was read")
+	}
+}
+
+func TestAWSPutNew(t *testing.T) {
+	offlineAWS(t)
+	ctx := context.Background()
+	srv, seen := awsServer(t, http.StatusOK, "")
+	a := AWS{Endpoint: srv.URL}
+	created, err := a.PutNew(ctx, "us-west-1", "b", "puffball/r/new", "123456789012", []byte(`{}`))
+	if err != nil || !created {
+		t.Fatalf("new object: %v %v", created, err)
+	}
+	last := (*seen)[len(*seen)-1]
+	if !strings.Contains(last, "PUT /b/puffball/r/new owner=123456789012 body={}") {
+		t.Errorf("PutObject: %s", last)
+	}
+	if created, err := a.PutNew(ctx, "us-west-1", "b", "puffball/r/exists", "123456789012", []byte(`{}`)); err != nil || created {
+		t.Errorf("existing object (412): %v %v; want false, nil", created, err)
+	}
+	if _, err := a.PutNew(ctx, "us-west-1", "b", "k", "210987654321", []byte(`{}`)); err == nil {
+		t.Error("another account's bucket was written")
 	}
 }

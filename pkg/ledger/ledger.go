@@ -281,11 +281,11 @@ func duration(ctx context.Context, t braket.Task, o Options, acct func(context.C
 	if err != nil {
 		return 0, fmt.Errorf("account: %w", err)
 	}
-	b, err := o.Reader.Read(ctx, t.Region, bucket, dir+"/results.json", a, resultsLimit)
+	obj, err := o.Reader.Read(ctx, t.Region, bucket, dir+"/results.json", a, resultsLimit)
 	if err != nil {
 		return 0, err
 	}
-	ms, err := ParseDuration(b)
+	ms, err := ParseDuration(obj.Body)
 	if err != nil {
 		return 0, err
 	}

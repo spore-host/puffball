@@ -94,6 +94,10 @@ type Device struct {
 	Calibration Calibration `json:"calibration"`
 	ReplacedBy  string      `json:"replaced_by,omitempty"`
 	UpdatedAt   string      `json:"capabilities_updated_at,omitempty"`
+	// Capabilities is the deviceCapabilities document exactly as GetDevice
+	// returned it (the first region's), kept for calibration snapshots
+	// (#42). It isn't printed.
+	Capabilities string `json:"-"`
 }
 
 // capabilities is the part of deviceCapabilities puff reads.
@@ -133,6 +137,7 @@ func Parse(g *braket.GetDeviceOutput, region string) (Device, error) {
 	d := Device{
 		Name: aws.ToString(g.DeviceName), Provider: aws.ToString(g.ProviderName), Arn: aws.ToString(g.DeviceArn),
 		Type: string(g.DeviceType), Status: string(g.DeviceStatus), Regions: []string{region},
+		Capabilities: aws.ToString(g.DeviceCapabilities),
 	}
 	var c capabilities
 	if err := json.Unmarshal([]byte(aws.ToString(g.DeviceCapabilities)), &c); err != nil {

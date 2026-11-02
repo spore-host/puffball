@@ -23,15 +23,16 @@ type fixtureReader struct {
 	err   error
 }
 
-func (r *fixtureReader) Read(_ context.Context, _, bucket, key, account string, _ int64) ([]byte, error) {
+func (r *fixtureReader) Read(_ context.Context, _, bucket, key, account string, _ int64) (results.Object, error) {
 	r.reads++
 	if r.err != nil {
-		return nil, r.err
+		return results.Object{}, r.err
 	}
 	if !strings.Contains(bucket, account) || !strings.Contains(key, g0SV1) {
-		return nil, errors.New("NoSuchKey")
+		return results.Object{}, errors.New("NoSuchKey")
 	}
-	return os.ReadFile("../testdata/tasks/sv1-bell-100/s3/results.json")
+	b, err := os.ReadFile("../testdata/tasks/sv1-bell-100/s3/results.json")
+	return results.Object{Body: b, ETag: `"fixture"`}, err
 }
 
 func ledgerHarness(t *testing.T, mut func(*testutil.FakeFactory)) *fixtureReader {

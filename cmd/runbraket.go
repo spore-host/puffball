@@ -11,17 +11,20 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	braketsdk "github.com/aws/aws-sdk-go-v2/service/braket"
 	"github.com/spf13/cobra"
 
+	"github.com/spore-host/puffball/internal/scrub"
 	"github.com/spore-host/puffball/pkg/awscfg"
 	pbraket "github.com/spore-host/puffball/pkg/braket"
 	"github.com/spore-host/puffball/pkg/devices"
 	"github.com/spore-host/puffball/pkg/gate"
 	"github.com/spore-host/puffball/pkg/price"
+	"github.com/spore-host/puffball/pkg/record"
 	"github.com/spore-host/puffball/pkg/results"
 )
 
@@ -218,6 +221,7 @@ func runOnBraket(cmd *cobra.Command, program string, src []byte, sum string) err
 	if err != nil {
 		return err
 	}
+	collectedAt := clockNow()
 	l, collectErr := devices.Collect(ctx, f, aliases)
 	if l == nil {
 		return collectErr
@@ -296,7 +300,8 @@ func runOnBraket(cmd *cobra.Command, program string, src []byte, sum string) err
 	if err := permit.Check(); err != nil {
 		return err
 	}
-	bucket, created, err := results.Ensure(ctx, newResults(), region, true)
+	store := newResults()
+	bucket, created, err := results.Ensure(ctx, store, region, true)
 	if err != nil {
 		return err
 	}
@@ -305,6 +310,12 @@ func runOnBraket(cmd *cobra.Command, program string, src []byte, sum string) err
 	}
 	out.BucketCreated = created
 	prefix := results.Prefix + runID
+	// What puff record needs that the service doesn't keep: the action as
+	// submitted and the device's calibration at submission (#42). Never
+	// overwritten, so a retry keeps the first attempt's.
+	if err := storeSubmission(ctx, store, region, bucket, prefix, d, action, collectedAt); err != nil {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: the submission snapshot wasn't stored (%v); puff record will name calibration.at_submission missing\n", scrub.Error(err))
+	}
 	s, err := permit.Submit(ctx, region, key, braketsdk.CreateQuantumTaskInput{
 		Action:            aws.String(action),
 		DeviceArn:         aws.String(d.Arn),
@@ -376,6 +387,25 @@ func writeBraketRun(cmd *cobra.Command, r braketRun) error {
 	}
 	_, _ = fmt.Fprintf(w, "tags:    %s\n", strings.Join(parts, " "))
 	return nil
+}
+
+// storeSubmission writes the submitted action and a snapshot of the device,
+// as read just before submission, under <prefix>/submission/.
+func storeSubmission(ctx context.Context, store results.Store, region, bucket, prefix string, d devices.Device, action string, readAt time.Time) error {
+	snap, err := record.NewSnapshot(d.Arn, region, d.Capabilities, readAt)
+	if err != nil {
+		return err
+	}
+	acct, err := store.Account(ctx)
+	if err != nil {
+		return fmt.Errorf("account: %w", err)
+	}
+	dir := record.SubmissionDir(prefix)
+	if _, err := store.PutNew(ctx, region, bucket, dir+record.ActionObject, acct, []byte(action)); err != nil {
+		return err
+	}
+	_, err = store.PutNew(ctx, region, bucket, dir+record.DeviceObject, acct, snap)
+	return err
 }
 
 // taskID is the UUID at the end of a task ARN, which carries no account ID.
