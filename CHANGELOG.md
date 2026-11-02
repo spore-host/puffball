@@ -67,4 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (measured), so a retried run can't be billed twice. A test fails the build
   if anything outside the gate makes a billable call.
 
+### Fixed
+- A task or job ID whose last group is all digits (about 1 UUID in 280) is no
+  longer mistaken for an account ID and printed as `000000000000` in errors
+  and scrubbed fixtures.
+
 [Unreleased]: https://github.com/spore-host/puffball/commits/main
