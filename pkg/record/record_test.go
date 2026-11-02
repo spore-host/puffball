@@ -292,6 +292,27 @@ func TestRecordForeignSubmission(t *testing.T) {
 	}
 }
 
+// The calibration changed between submission and the record, with
+// timestamps still before the task's end (measured live 2026-11-02): when it
+// took effect isn't known, so it is at_record, not at_completion.
+func TestRecordChangedSinceSubmission(t *testing.T) {
+	f := load(t, "cepheus-bell-100")
+	caps := cepheusCaps(t)
+	f.submitted(t, caps)
+	// Qubit 81's properties change; no timestamp moves past the end.
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(caps), &doc); err != nil {
+		t.Fatal(err)
+	}
+	doc["standardized"].(map[string]any)["oneQubitProperties"].(map[string]any)["81"] = map[string]any{"T1": map[string]any{"value": 0.00003, "unit": "S"}}
+	later, _ := json.Marshal(doc)
+	r := build(t, f, string(later))
+	if r.Calibration.AtSubmission == nil || r.Calibration.AtCompletion != nil || r.Calibration.AtRecord == nil ||
+		!strings.Contains(missing(r)["calibration.at_completion"], "changed between submission") {
+		t.Errorf("calibration %+v; missing %v", r.Calibration, missing(r))
+	}
+}
+
 // A snapshot left by an earlier, failed attempt isn't this submission's.
 func TestRecordStaleSnapshot(t *testing.T) {
 	f := load(t, "cepheus-bell-100")

@@ -618,9 +618,11 @@ func (b *builder) noTimes(c *Calibration, field string) {
 }
 
 // calibration reads the device now. Its calibration is the one in force at
-// completion when every timestamp in it predates the task's end; if any is
-// later, the device was recalibrated after the task ended, and the read is
-// kept as at_record instead.
+// completion when every timestamp for the task's qubits predates the task's
+// end, and (when there is a submission snapshot) it is unchanged since
+// submission. Otherwise the read is kept as at_record: a later timestamp
+// means a recalibration after the end; a change since submission means a
+// calibration published at an unknown time, possibly after the end.
 func (b *builder) calibration(ctx context.Context) {
 	if isSimulator(b.r.Device.Arn) {
 		b.miss("calibration.at_submission", "simulators have no calibration")
@@ -649,6 +651,13 @@ func (b *builder) calibration(ctx context.Context) {
 	case c.CalibratedTo.After(*end):
 		b.r.Calibration.AtRecord = c
 		b.miss("calibration.at_completion", fmt.Sprintf("the device was recalibrated at %s, after the task ended at %s; at_record is the later calibration", c.CalibratedTo.Format(time.RFC3339), end.Format(time.RFC3339)))
+	case b.r.Calibration.AtSubmission != nil && b.r.Calibration.AtSubmission.SubsetSHA256 != c.SubsetSHA256:
+		// Measured 2026-11-02: a calibration timestamped before the task's end
+		// was published after the submission read, so a timestamp doesn't say
+		// when a calibration took effect.
+		b.r.Calibration.AtRecord = c
+		b.miss("calibration.at_completion", fmt.Sprintf("these qubits' calibration changed between submission (read %s) and the record (read %s); its timestamps predate the task's end, but when it was published isn't known; at_record is the later one",
+			b.r.Calibration.AtSubmission.ReadAt.Format(time.RFC3339), c.ReadAt.Format(time.RFC3339)))
 	default:
 		b.r.Calibration.AtCompletion = c
 	}
