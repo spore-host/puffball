@@ -36,7 +36,7 @@ var ledgerNotes = []string{
 	"Pending tasks (created, queued, running, cancelling) are kept out of the total until they finish.",
 	"Cancelled and failed tasks are shown at $0: Braket adds nothing to current spend for them (Developer Guide, Cost tracking and saving). Cost Explorer reconciliation (#16) will check this against the bill.",
 	"Simulator tasks are billed for their duration, read from each task's results.json in S3; \"at least\" marks a minimum charge where none was read.",
-	"Not included: Hybrid Jobs instances, notebook instances, Braket Direct reservations, S3 storage.",
+	"Not included yet: Hybrid Jobs instance time (#61), managed notebook instances (#62), S3 storage of results (#63), Braket Direct reservations (#64).",
 }
 
 var ledgerCmd = &cobra.Command{
