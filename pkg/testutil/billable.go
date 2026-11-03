@@ -142,3 +142,109 @@ func (c *FakeCanceller) CancelQuantumTask(_ context.Context, in *braket.CancelQu
 	}
 	return &braket.CancelQuantumTaskOutput{QuantumTaskArn: in.QuantumTaskArn, CancellationStatus: c.Status}, nil
 }
+
+// FakeLimiter changes a FakeFactory's spending limits as the service does
+// (Amazon Braket Developer Guide, spending limits): Create is rejected when the
+// device already has a limit; Update is rejected below the current plus
+// queued spend; Delete removes by ARN. Calls records each call by name.
+type FakeLimiter struct {
+	F     *FakeFactory
+	Err   error
+	mu    sync.Mutex
+	Calls []string
+	n     int
+}
+
+// Factory returns a func handing out l for every region, as the region's
+// limiter.
+func (l *FakeLimiter) Factory() func(context.Context, string) (pbraket.Limiter, error) {
+	return func(_ context.Context, region string) (pbraket.Limiter, error) {
+		b, ok := l.F.Regions[region]
+		if !ok {
+			return nil, fmt.Errorf("no Braket endpoint for region %s", region)
+		}
+		return &regionLimiter{l: l, b: b, region: region}, nil
+	}
+}
+
+type regionLimiter struct {
+	l      *FakeLimiter
+	b      *FakeBraket
+	region string
+}
+
+func (r *regionLimiter) call(name string) error {
+	r.l.mu.Lock()
+	defer r.l.mu.Unlock()
+	r.l.Calls = append(r.l.Calls, name+" "+r.region)
+	return r.l.Err
+}
+
+// CreateSpendingLimit adds a limit with no spend.
+func (r *regionLimiter) CreateSpendingLimit(_ context.Context, in *braket.CreateSpendingLimitInput, _ ...func(*braket.Options)) (*braket.CreateSpendingLimitOutput, error) {
+	if err := r.call("CreateSpendingLimit"); err != nil {
+		return nil, err
+	}
+	if in.ClientToken == nil || in.DeviceArn == nil || in.SpendingLimit == nil {
+		return nil, errors.New("missing required field, CreateSpendingLimitInput")
+	}
+	r.b.mu.Lock()
+	defer r.b.mu.Unlock()
+	for _, x := range r.b.Limits {
+		if aws.ToString(x.DeviceArn) == aws.ToString(in.DeviceArn) {
+			return nil, &types.ConflictException{Message: aws.String("A spending limit already exists for this device")}
+		}
+	}
+	r.l.mu.Lock()
+	r.l.n++
+	arn := fmt.Sprintf("arn:aws:braket:%s:000000000000:spending-limit/fake-%d", r.region, r.l.n)
+	r.l.mu.Unlock()
+	r.b.Limits = append(r.b.Limits, types.SpendingLimitSummary{SpendingLimitArn: aws.String(arn), DeviceArn: in.DeviceArn,
+		SpendingLimit: in.SpendingLimit, TotalSpend: aws.String("0.00"), QueuedSpend: aws.String("0.00"), TimePeriod: in.TimePeriod, Tags: in.Tags})
+	return &braket.CreateSpendingLimitOutput{SpendingLimitArn: aws.String(arn)}, nil
+}
+
+// UpdateSpendingLimit changes the maximum and period.
+func (r *regionLimiter) UpdateSpendingLimit(_ context.Context, in *braket.UpdateSpendingLimitInput, _ ...func(*braket.Options)) (*braket.UpdateSpendingLimitOutput, error) {
+	if err := r.call("UpdateSpendingLimit"); err != nil {
+		return nil, err
+	}
+	r.b.mu.Lock()
+	defer r.b.mu.Unlock()
+	for i, x := range r.b.Limits {
+		if aws.ToString(x.SpendingLimitArn) != aws.ToString(in.SpendingLimitArn) {
+			continue
+		}
+		if in.SpendingLimit != nil {
+			var limit, total, queued float64
+			_, _ = fmt.Sscan(aws.ToString(in.SpendingLimit), &limit)
+			_, _ = fmt.Sscan(aws.ToString(x.TotalSpend), &total)
+			_, _ = fmt.Sscan(aws.ToString(x.QueuedSpend), &queued)
+			if total+queued > limit {
+				return nil, &types.ValidationException{Message: aws.String("current spend plus queued spend is higher than the requested spending limit")}
+			}
+			r.b.Limits[i].SpendingLimit = in.SpendingLimit
+		}
+		if in.TimePeriod != nil {
+			r.b.Limits[i].TimePeriod = in.TimePeriod
+		}
+		return &braket.UpdateSpendingLimitOutput{}, nil
+	}
+	return nil, &types.ResourceNotFoundException{Message: aws.String("spending limit not found")}
+}
+
+// DeleteSpendingLimit removes a limit.
+func (r *regionLimiter) DeleteSpendingLimit(_ context.Context, in *braket.DeleteSpendingLimitInput, _ ...func(*braket.Options)) (*braket.DeleteSpendingLimitOutput, error) {
+	if err := r.call("DeleteSpendingLimit"); err != nil {
+		return nil, err
+	}
+	r.b.mu.Lock()
+	defer r.b.mu.Unlock()
+	for i, x := range r.b.Limits {
+		if aws.ToString(x.SpendingLimitArn) == aws.ToString(in.SpendingLimitArn) {
+			r.b.Limits = append(r.b.Limits[:i], r.b.Limits[i+1:]...)
+			return &braket.DeleteSpendingLimitOutput{}, nil
+		}
+	}
+	return nil, &types.ResourceNotFoundException{Message: aws.String("spending limit not found")}
+}

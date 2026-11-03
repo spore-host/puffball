@@ -26,6 +26,7 @@ type API interface {
 	GetDevice(ctx context.Context, in *braket.GetDeviceInput, opts ...func(*braket.Options)) (*braket.GetDeviceOutput, error)
 	SearchQuantumTasks(ctx context.Context, in *braket.SearchQuantumTasksInput, opts ...func(*braket.Options)) (*braket.SearchQuantumTasksOutput, error)
 	GetQuantumTask(ctx context.Context, in *braket.GetQuantumTaskInput, opts ...func(*braket.Options)) (*braket.GetQuantumTaskOutput, error)
+	SearchSpendingLimits(ctx context.Context, in *braket.SearchSpendingLimitsInput, opts ...func(*braket.Options)) (*braket.SearchSpendingLimitsOutput, error)
 }
 
 // Creator is the billable subset of the Braket service. Only pkg/gate may hold
@@ -63,6 +64,10 @@ func (r readClient) GetDevice(ctx context.Context, in *braket.GetDeviceInput, op
 
 func (r readClient) SearchQuantumTasks(ctx context.Context, in *braket.SearchQuantumTasksInput, opts ...func(*braket.Options)) (*braket.SearchQuantumTasksOutput, error) {
 	return r.c.SearchQuantumTasks(ctx, in, opts...)
+}
+
+func (r readClient) SearchSpendingLimits(ctx context.Context, in *braket.SearchSpendingLimitsInput, opts ...func(*braket.Options)) (*braket.SearchSpendingLimitsOutput, error) {
+	return r.c.SearchSpendingLimits(ctx, in, opts...)
 }
 
 func (r readClient) GetQuantumTask(ctx context.Context, in *braket.GetQuantumTaskInput, opts ...func(*braket.Options)) (*braket.GetQuantumTaskOutput, error) {
@@ -127,4 +132,12 @@ func (f *awsFactory) Parameters(ctx context.Context, region string) (ParameterRe
 // account state, so like Creator only pkg/gate holds one.
 type Canceller interface {
 	CancelQuantumTask(ctx context.Context, in *braket.CancelQuantumTaskInput, opts ...func(*braket.Options)) (*braket.CancelQuantumTaskOutput, error)
+}
+
+// Limiter creates, updates and deletes Braket spending limits. Not billable,
+// but it changes account state, so like Creator only pkg/gate holds one.
+type Limiter interface {
+	CreateSpendingLimit(ctx context.Context, in *braket.CreateSpendingLimitInput, opts ...func(*braket.Options)) (*braket.CreateSpendingLimitOutput, error)
+	UpdateSpendingLimit(ctx context.Context, in *braket.UpdateSpendingLimitInput, opts ...func(*braket.Options)) (*braket.UpdateSpendingLimitOutput, error)
+	DeleteSpendingLimit(ctx context.Context, in *braket.DeleteSpendingLimitInput, opts ...func(*braket.Options)) (*braket.DeleteSpendingLimitOutput, error)
 }

@@ -127,6 +127,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   15 minutes before the task was created (left by an earlier, failed
   attempt) isn't used as the calibration at submission. Account IDs appear as
   `<account>`. The JSON Schema ships in `pkg/record/schema/`.
+- **`puff budget`** sets, lists and removes Amazon Braket spending limits on
+  QPUs. Braket enforces them: a task whose estimated cost exceeds the
+  limit's remaining budget, or one submitted outside its period, is
+  rejected.
+  - `puff budget set <device>... --usd N` creates the device's limit, or
+    updates the one it has, in the device's region. `--all-qpus` covers
+    every QPU that isn't retired, and is refused if a region couldn't be
+    searched. `--from`/`--until` set the period; `--project` tags it.
+  - `puff budget ls` lists limits in every region, with Braket's spent and
+    queued figures and the remaining budget. These are Braket's own
+    accounting, not a bill. A failed region is named, and the command exits
+    1.
+  - `puff budget rm <device>...` (or `--all-qpus`) removes limits.
+  - A limit puff didn't create is left alone unless `--include-others` is
+    given.
+  - Spending limits cover QPU tasks only, so simulators are refused.
+    Setting or removing a limit isn't billed. `--json` is supported.
 - **`puff record verify <file>`** checks a record offline against the
   schema and recomputes the SHA-256 of its sources, compiled programs and
   calibration subsets. Exit 1 lists each problem; `--json` is supported.
