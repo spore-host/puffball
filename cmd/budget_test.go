@@ -53,7 +53,7 @@ func TestBudgetSetLsRm(t *testing.T) {
 		} `json:"limits"`
 		Complete bool `json:"complete"`
 	}
-	if err := json.Unmarshal([]byte(out), &got); err != nil || code != exitOK || !got.Complete || len(got.Limits) != 1 || got.Limits[0].Remaining != "$1.00" {
+	if err := json.Unmarshal([]byte(out), &got); err != nil || code != exitOK || !got.Complete || len(got.Limits) != 1 || got.Limits[0].Remaining != "1.00" {
 		t.Errorf("ls --json: exit %d %+v %v\n%s", code, got, err, out)
 	}
 	if out, errs, code := runPuff(t, "budget", "rm", "cepheus"); code != exitOK || !strings.Contains(out, "deleted") || len(f.Regions["us-west-1"].Limits) != 0 {
@@ -75,6 +75,9 @@ func TestBudgetUsage(t *testing.T) {
 		{"budget", "set", "cepheus", "--usd", "1", "--from", "2030-01-01"},
 		{"budget", "set", "cepheus", "--usd", "1", "--project", ""},
 		{"budget", "rm"},
+		{"budget", "set", "--all-qpus", "--include-others", "--usd", "1"},
+		{"budget", "rm", "--all-qpus", "--include-others"},
+		{"budget", "rm", "--all-qpus", "cepheus"},
 		{"budget", "ls", "x"},
 	} {
 		_, fl := budgetHarness(t, nil)
@@ -90,12 +93,13 @@ func TestBudgetUntil(t *testing.T) {
 	if _, errs, code := runPuff(t, "budget", "set", "cepheus", "--usd", "1", "--until", "2026-12-31"); code != exitOK {
 		t.Fatalf("exit %d: %s", code, errs)
 	}
+	// A date-only --until runs through that day.
 	p := f.Regions["us-west-1"].Limits[0].TimePeriod
-	if p == nil || aws.ToTime(p.EndAt) != mustTime("2026-12-31T00:00:00Z") || aws.ToTime(p.StartAt) != mustTime("2026-11-02T00:00:00Z") {
+	if p == nil || aws.ToTime(p.EndAt) != mustTime("2027-01-01T00:00:00Z") || aws.ToTime(p.StartAt) != mustTime("2026-11-02T00:00:00Z") {
 		t.Errorf("period %+v", p)
 	}
 	out, _, _ := runPuff(t, "budget", "ls")
-	if !strings.Contains(out, "2026-11-02 00:00Z to 2026-12-31 00:00Z") {
+	if !strings.Contains(out, "2026-11-02 00:00Z to 2027-01-01 00:00Z") {
 		t.Errorf("ls period:\n%s", out)
 	}
 }
@@ -106,7 +110,7 @@ func TestBudgetKeepsOthers(t *testing.T) {
 			DeviceArn: aws.String("arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q"), SpendingLimit: aws.String("10"), TotalSpend: aws.String("0"), QueuedSpend: aws.String("0")}}
 	})
 	out, errs, code := runPuff(t, "budget", "rm", "cepheus")
-	if code != exitOK || !strings.Contains(out, "kept (not created by puff") || len(fl.Calls) != 0 {
+	if code != exitOK || !strings.Contains(out, "kept (ownership unknown") || len(fl.Calls) != 0 {
 		t.Errorf("exit %d, calls %v:\n%s\n%s", code, fl.Calls, out, errs)
 	}
 	noAccount(t, out, errs)
@@ -126,10 +130,20 @@ func TestBudgetFailures(t *testing.T) {
 	if _, errs, code := runPuff(t, "budget", "set", "--all-qpus", "--usd", "1"); code != exitError || !strings.Contains(errs, "--all-qpus needs every region") {
 		t.Errorf("--all-qpus partial: exit %d: %s", code, errs)
 	}
-	// ls with a region down names it and exits 1.
+	// ls with a region down names it, on stdout and stderr, and exits 1.
 	budgetHarness(t, func(f *testutil.FakeFactory) { f.Regions["eu-north-1"].Err = errors.New("injected failure") })
-	if _, errs, code := runPuff(t, "budget", "ls"); code != exitError || !strings.Contains(errs, "eu-north-1") {
-		t.Errorf("ls region down: exit %d: %s", code, errs)
+	if out, errs, code := runPuff(t, "budget", "ls"); code != exitError || !strings.Contains(errs, "eu-north-1") || !strings.Contains(out, "INCOMPLETE: eu-north-1") {
+		t.Errorf("ls region down: exit %d:\n%s\n%s", code, out, errs)
+	}
+	// A device in a region that couldn't be searched: exit 1 naming it, not 2.
+	budgetHarness(t, func(f *testutil.FakeFactory) { f.Regions["eu-north-1"].Err = errors.New("injected failure") })
+	if _, errs, code := runPuff(t, "budget", "set", "garnet", "--usd", "1"); code != exitError || !strings.Contains(errs, "eu-north-1") {
+		t.Errorf("set garnet, eu-north-1 down: exit %d: %s", code, errs)
+	}
+	// rm --all-qpus needs every region.
+	budgetHarness(t, func(f *testutil.FakeFactory) { f.Regions["eu-north-1"].Err = errors.New("injected failure") })
+	if _, errs, code := runPuff(t, "budget", "rm", "--all-qpus"); code != exitError || !strings.Contains(errs, "needs every region") {
+		t.Errorf("rm --all-qpus partial: exit %d: %s", code, errs)
 	}
 }
 

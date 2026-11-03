@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -53,15 +54,21 @@ func parseWhen(flag, s string) (time.Time, error) {
 		return t, nil
 	}
 	if t, err := time.Parse("2006-01-02", s); err == nil {
+		if flag == "--until" {
+			return t.Add(24 * time.Hour), nil // through that whole day, UTC
+		}
 		return t, nil
 	}
-	return time.Time{}, usageErrorf("%s %q: want a date (2026-12-31, UTC midnight) or an RFC 3339 time", flag, s)
+	return time.Time{}, usageErrorf("%s %q: want a date (UTC; --until runs through that day) or an RFC 3339 time", flag, s)
 }
 
 // budgetTargets resolves the command's devices, from the live device list.
 func budgetTargets(cmd *cobra.Command, args []string) ([]budget.Target, pbraket.Factory, error) {
 	if len(args) == 0 && !budgetFlags.allQPUs {
 		return nil, nil, usageErrorf("name a QPU (alias, name or ARN), or pass --all-qpus")
+	}
+	if budgetFlags.allQPUs && budgetFlags.others {
+		return nil, nil, usageErrorf("--include-others with --all-qpus would change every limit in the account; name the devices")
 	}
 	ctx := ctxOf(cmd)
 	tb, err := price.Load()
@@ -88,6 +95,10 @@ func budgetTargets(cmd *cobra.Command, args []string) ([]budget.Target, pbraket.
 		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "warning:", collectErr.Error())
 	}
 	ts, err := budget.Targets(l, aliases, args, budgetFlags.allQPUs)
+	if err != nil && collectErr != nil {
+		// The device may be in a region that couldn't be searched (law 3).
+		return nil, nil, fmt.Errorf("%w (and %v)", collectErr, err)
+	}
 	if err != nil {
 		return nil, nil, usageError{err}
 	}
@@ -116,8 +127,14 @@ func writeChanges(cmd *cobra.Command, cs []budget.Change) error {
 				limit = "$" + c.Before
 			}
 			action := c.Action
-			if c.NotPuffs && c.Action == "kept" {
+			switch {
+			case c.Action == "kept" && c.Owner == "unknown":
+				action = "kept (ownership unknown: the service returned no tags; --include-others to change it)"
+			case c.Action == "kept":
 				action = "kept (not created by puff; --include-others to change it)"
+			}
+			if c.PeriodKept {
+				action += " (period kept)"
 			}
 			if c.Error != "" {
 				action += ": " + display(c.Error)
@@ -136,7 +153,7 @@ var budgetSetCmd = &cobra.Command{
 	Use:   "set [<device>...] --usd <amount>",
 	Short: "Set a spending limit on QPUs, creating or updating it",
 	Example: `  puff budget set cepheus --usd 1
-  puff budget set --all-qpus --usd 5 --until 2026-12-31`,
+  puff budget set --all-qpus --usd 5 --until 2026-12-31   # through Dec 31, UTC`,
 	Args: usageArgs(cobra.ArbitraryArgs),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if budgetFlags.usd == "" {
@@ -156,7 +173,7 @@ var budgetSetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		period, err := budget.Period(from, until, clockNow())
+		period, defaulted, err := budget.Period(from, until, clockNow())
 		if err != nil {
 			return usageError{err}
 		}
@@ -164,7 +181,8 @@ var budgetSetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return writeChanges(cmd, budget.Set(ctxOf(cmd), f, newLimiters(), ts, budgetFlags.usd, period, budgetFlags.project, budgetFlags.others))
+		return writeChanges(cmd, budget.Set(ctxOf(cmd), f, newLimiters(), ts, budget.Plan{USD: budgetFlags.usd, Period: period,
+			KeepStart: defaulted, Project: budgetFlags.project, Others: budgetFlags.others}))
 	},
 }
 
@@ -174,6 +192,27 @@ var budgetRmCmd = &cobra.Command{
 	Example: `  puff budget rm cepheus`,
 	Args:    usageArgs(cobra.ArbitraryArgs),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if budgetFlags.allQPUs {
+			// From the limits found in every region, so a limit on a device
+			// that has since retired is reached too.
+			if len(args) > 0 || budgetFlags.others {
+				return usageErrorf("rm --all-qpus takes no devices and no --include-others")
+			}
+			ctx := ctxOf(cmd)
+			f, err := newFactory(ctx)
+			if err != nil {
+				return err
+			}
+			inv, derr := pbraket.Discover(ctx, f)
+			if inv == nil {
+				return derr
+			}
+			ls, serr := pbraket.SearchLimits(ctx, f, inv.Regions())
+			if listErr := mergeIncomplete("list spending limits", derr, serr); listErr != nil {
+				return fmt.Errorf("rm --all-qpus needs every region: %w", listErr)
+			}
+			return writeChanges(cmd, budget.RemoveLimits(ctx, newLimiters(), ls, false))
+		}
 		ts, f, err := budgetTargets(cmd, args)
 		if err != nil {
 			return err
@@ -212,6 +251,9 @@ is named, and the command exits 1 after listing the rest.`,
 			return listErr
 		}
 		writeLimits(cmd.OutOrStdout(), views)
+		if listErr != nil {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "INCOMPLETE: %s couldn't be searched; limits there aren't listed.\n", strings.Join(sortedKeys(failedRegions(listErr)), ", "))
+		}
 		if len(views) == 0 {
 			_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "no spending limits")
 		}
@@ -228,10 +270,17 @@ func writeLimits(w io.Writer, vs []budget.View) {
 			period = when(v.From) + " to " + when(v.Until)
 		}
 		by := "no"
-		if v.ByPuff {
+		switch {
+		case v.ByPuff:
 			by = "yes (" + dash(v.Project) + ")"
+		case v.Owner == "unknown":
+			by = "unknown (no tags returned)"
 		}
-		_, _ = fmt.Fprintf(tw, "%s\t%s\t$%s\t$%s\t$%s\t%s\t%s\t%s\n", v.Device, v.Region, v.LimitUSD, v.SpentUSD, v.QueuedUSD, dash(v.Remaining), period, by)
+		remaining := "-"
+		if v.Remaining != "" {
+			remaining = "$" + v.Remaining
+		}
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t$%s\t$%s\t$%s\t%s\t%s\t%s\n", v.Device, v.Region, v.LimitUSD, v.SpentUSD, v.QueuedUSD, remaining, period, by)
 	}
 	_ = tw.Flush()
 	if len(vs) > 0 {
@@ -244,13 +293,22 @@ func writeLimits(w io.Writer, vs []budget.View) {
 	}
 }
 
+func sortedKeys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func init() {
 	for _, c := range []*cobra.Command{budgetSetCmd, budgetRmCmd} {
 		c.Flags().BoolVar(&budgetFlags.allQPUs, "all-qpus", false, "Every QPU that isn't RETIRED, in every region")
 		c.Flags().BoolVar(&budgetFlags.others, "include-others", false, "Also change limits puff didn't create")
 	}
 	budgetSetCmd.Flags().StringVar(&budgetFlags.usd, "usd", "", "The limit in US dollars (e.g. 1 or 2.50; 0 blocks every task)")
-	budgetSetCmd.Flags().StringVar(&budgetFlags.until, "until", "", "End of the limit's period (date or RFC 3339); outside it Braket rejects every task")
+	budgetSetCmd.Flags().StringVar(&budgetFlags.until, "until", "", "End of the limit's period: a date (through that day, UTC) or an RFC 3339 time; outside the period Braket rejects every task")
 	budgetSetCmd.Flags().StringVar(&budgetFlags.from, "from", "", "Start of the period (default now; needs --until)")
 	budgetSetCmd.Flags().StringVar(&budgetFlags.project, "project", "default", "puffball:project tag on limits puff creates")
 	budgetCmd.AddCommand(budgetSetCmd, budgetLsCmd, budgetRmCmd)

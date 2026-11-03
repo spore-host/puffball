@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -188,6 +189,9 @@ func (r *regionLimiter) CreateSpendingLimit(_ context.Context, in *braket.Create
 	if in.ClientToken == nil || in.DeviceArn == nil || in.SpendingLimit == nil {
 		return nil, errors.New("missing required field, CreateSpendingLimitInput")
 	}
+	if !strings.Contains(aws.ToString(in.DeviceArn), ":"+r.region+"::device/qpu/") {
+		return nil, &types.ValidationException{Message: aws.String("the device is not a QPU in this region")}
+	}
 	r.b.mu.Lock()
 	defer r.b.mu.Unlock()
 	for _, x := range r.b.Limits {
@@ -208,6 +212,9 @@ func (r *regionLimiter) CreateSpendingLimit(_ context.Context, in *braket.Create
 func (r *regionLimiter) UpdateSpendingLimit(_ context.Context, in *braket.UpdateSpendingLimitInput, _ ...func(*braket.Options)) (*braket.UpdateSpendingLimitOutput, error) {
 	if err := r.call("UpdateSpendingLimit"); err != nil {
 		return nil, err
+	}
+	if in.ClientToken == nil || in.SpendingLimitArn == nil {
+		return nil, errors.New("missing required field, UpdateSpendingLimitInput")
 	}
 	r.b.mu.Lock()
 	defer r.b.mu.Unlock()

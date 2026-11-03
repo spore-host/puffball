@@ -62,7 +62,7 @@ puff budget set [<device>...] --usd <amount> [flags]
 
 ```sh
 puff budget set cepheus --usd 1
-  puff budget set --all-qpus --usd 5 --until 2026-12-31
+  puff budget set --all-qpus --usd 5 --until 2026-12-31   # through Dec 31, UTC
 ```
 
 **Flags:**
@@ -73,6 +73,6 @@ puff budget set cepheus --usd 1
 | `--from` |  | string |  | Start of the period (default now; needs --until) |
 | `--include-others` |  | bool |  | Also change limits puff didn't create |
 | `--project` |  | string | `default` | puffball:project tag on limits puff creates |
-| `--until` |  | string |  | End of the limit's period (date or RFC 3339); outside it Braket rejects every task |
+| `--until` |  | string |  | End of the limit's period: a date (through that day, UTC) or an RFC 3339 time; outside the period Braket rejects every task |
 | `--usd` |  | string |  | The limit in US dollars (e.g. 1 or 2.50; 0 blocks every task) |
 
