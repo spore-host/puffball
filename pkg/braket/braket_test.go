@@ -530,3 +530,35 @@ func TestTaskReads(t *testing.T) {
 		t.Error("IsNotFound")
 	}
 }
+
+func TestLatestQPUTask(t *testing.T) {
+	f := testutil.TasksFactory(t, "../../testdata")
+	ctx := context.Background()
+	// In the window: the newest G0 QPU task, the program set (16:56:08).
+	got, err := pbraket.LatestQPUTask(ctx, f, []string{"us-west-1", "eu-north-1"}, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tk := got["us-west-1"]; tk == nil || !strings.HasSuffix(aws.ToString(tk.Summary.QuantumTaskArn), "a543ab67-6545-4cf0-8bbe-55f55bef1aa6") {
+		t.Errorf("us-west-1: %+v", tk)
+	}
+	if tk, ok := got["eu-north-1"]; !ok || tk != nil {
+		t.Errorf("eu-north-1 has no tasks: %+v %v", tk, ok)
+	}
+	// Nothing in the window: any QPU task, from all time; never SV1's.
+	got, _ = pbraket.LatestQPUTask(ctx, f, []string{"us-west-1"}, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+	if tk := got["us-west-1"]; tk == nil || !strings.Contains(aws.ToString(tk.Summary.DeviceArn), "/qpu/") {
+		t.Errorf("fallback: %+v", tk)
+	}
+	mk := func(t *testing.T) *testutil.FakeFactory { return testutil.TasksFactory(t, "../../testdata") }
+	testutil.AssertIncompleteContract(t, "us-west-1", mk, func(ctx context.Context, f *testutil.FakeFactory) ([]string, error) {
+		m, err := pbraket.LatestQPUTask(ctx, f, []string{"eu-north-1", "us-west-1"}, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
+		var regions []string
+		for r, tk := range m {
+			if tk != nil {
+				regions = append(regions, r)
+			}
+		}
+		return regions, err
+	}, "SearchQuantumTasks")
+}

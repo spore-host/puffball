@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/braket/types"
 	"github.com/aws/aws-sdk-go-v2/service/pricing"
 	"github.com/spf13/cobra"
 
@@ -30,8 +31,12 @@ var newPricing = func(ctx context.Context) (price.ProductsAPI, error) {
 	return pricing.NewFromConfig(cfg), nil
 }
 
-// uvCached checks uv's cache for the pinned simulator; tests replace it.
-var uvCached = local.Cached
+// uvCached checks uv's cache for the pinned simulator, and findUV finds uv;
+// tests replace them.
+var (
+	uvCached = local.Cached
+	findUV   = local.FindUV
+)
 
 // Doctor check statuses. fail makes the command exit 1.
 const (
@@ -71,11 +76,16 @@ var doctorCmd = &cobra.Command{
     run works offline;
   - the price table is current and matches the AWS Price List;
   - the third-party device user agreement, per QPU region, as far as service
-    state shows it.
+    state shows it: accepted when Braket has accepted a QPU task in the region
+    (the newest in 90 days, else any), unknown otherwise. This assumes the
+    agreement covers every QPU provider in a region, which hasn't been
+    measured; the detail names the device whose task is the evidence.
 
-It reads only: STS, Braket searches, S3 HeadBucket, and the Price List API
-(none billed). It calls no Cost Explorer, creates nothing and changes nothing.
-Exits 1 if a check fails.`,
+On AWS it only reads: STS, Braket searches, S3 HeadBucket, and the Price List
+API (none billed). It calls no Cost Explorer and changes nothing in the
+account. Locally it creates the client-token directory if it is missing.
+Exits 1 if a check fails, including a region or the Price List that can't
+be read.`,
 	Args: usageArgs(cobra.NoArgs),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		d := &doctor{cmd: cmd}
@@ -117,7 +127,7 @@ func (d *doctor) local(ctx context.Context) {
 	} else {
 		d.add("client tokens", statusOK, dir+" is writable", "")
 	}
-	if _, err := local.FindUV(local.Options{}); err != nil {
+	if _, err := findUV(local.Options{}); err != nil {
 		d.add("uv", statusFail, err.Error(), "install uv: https://docs.astral.sh/uv/getting-started/installation/")
 		return
 	}
@@ -140,14 +150,16 @@ func (d *doctor) prices(ctx context.Context) {
 	} else {
 		d.add("price table", statusOK, fmt.Sprintf("as of %s, %d devices", tb.AsOf, len(tb.Devices)), "")
 	}
+	// An unreadable Price List fails: a scheduled doctor must not pass
+	// having checked nothing.
 	c, err := newPricing(ctx)
 	if err != nil {
-		d.add("price drift", statusUnknown, "Price List client: "+scrub.Error(err).Error(), "check AWS credentials")
+		d.add("price drift", statusFail, "Price List client: "+scrub.Error(err).Error(), "check AWS credentials")
 		return
 	}
 	products, err := price.FetchProducts(ctx, c)
 	if err != nil {
-		d.add("price drift", statusUnknown, scrub.Error(err).Error(), "the drift check needs pricing:GetProducts (the Price List API isn't billed)")
+		d.add("price drift", statusFail, scrub.Error(err).Error(), "the drift check needs pricing:GetProducts in "+price.ListRegion+" (the Price List API isn't billed)")
 		return
 	}
 	diffs, err := tb.Drift(products)
@@ -197,6 +209,7 @@ func (d *doctor) aws(ctx context.Context) {
 	store := newResults()
 	for _, r := range inv.Regions() {
 		if _, ok := failed[r]; ok {
+			d.add("results bucket "+r, statusSkipped, "the region couldn't be searched", "")
 			continue
 		}
 		ok, err := store.Exists(ctx, r, results.BucketName(r, acct), acct)
@@ -215,40 +228,38 @@ func (d *doctor) aws(ctx context.Context) {
 // agreement reports the third-party device user agreement per region with
 // QPUs, from service state: the agreement can't be read through the API,
 // and the call that reveals it (CreateQuantumTask) is billable. A task on a
-// QPU in a region means a create was accepted there, so the agreement was
-// in force; without one it is unknown (#27).
+// QPU in a region means Braket accepted a create there under this account,
+// so the agreement was in force; without one it is unknown (#27).
 func (d *doctor) agreement(ctx context.Context, f pbraket.Factory, inv *pbraket.Inventory, failed map[string]string) {
 	var regions []string
 	for r, ds := range inv.Devices {
 		for _, s := range ds {
-			if strings.Contains(aws.ToString(s.DeviceArn), "::device/qpu/") && string(s.DeviceStatus) != "RETIRED" {
+			if strings.Contains(aws.ToString(s.DeviceArn), "::device/qpu/") && s.DeviceStatus != types.DeviceStatusRetired {
 				regions = append(regions, r)
 				break
 			}
 		}
 	}
+	for r := range failed {
+		d.add("device agreement "+r, statusSkipped, "the region couldn't be searched", "")
+	}
 	sort.Strings(regions)
+	found, err := pbraket.LatestQPUTask(ctx, f, regions, clockNow().AddDate(0, 0, -90))
+	searchFailed := failedRegions(err)
 	for _, r := range regions {
 		name := "device agreement " + r
-		tasks, err := pbraket.SearchTasks(ctx, f, []string{r}, pbraket.TaskQuery{})
-		if err != nil {
-			d.add(name, statusUnknown, "task search: "+scrub.Error(err).Error(), "")
+		if e, ok := searchFailed[r]; ok {
+			d.add(name, statusFail, "task search: "+e, "check braket:SearchQuantumTasks in "+r)
 			continue
 		}
-		var found *pbraket.Task
-		for i := range tasks {
-			if strings.Contains(aws.ToString(tasks[i].Summary.DeviceArn), "::device/qpu/") {
-				found = &tasks[i]
-				break
-			}
-		}
-		if found == nil {
+		t := found[r]
+		if t == nil {
 			d.add(name, statusUnknown, "no QPU task in "+r+" yet, so service state doesn't show whether the third-party device user agreement is accepted",
 				"if it isn't, the first `puff run --real` on a QPU here is refused (HTTP 403, nothing created) and puff names it; accept it on the Braket console, Permissions and settings > General, in "+r)
 			continue
 		}
-		dev := aws.ToString(found.Summary.DeviceArn)
-		d.add(name, statusOK, fmt.Sprintf("accepted: Braket accepted task %s on %s (%s)", taskID(aws.ToString(found.Summary.QuantumTaskArn)), dev[strings.LastIndex(dev, "/")+1:], when(found.Summary.CreatedAt)), "")
+		dev := aws.ToString(t.Summary.DeviceArn)
+		d.add(name, statusOK, fmt.Sprintf("accepted: Braket accepted task %s on %s (%s)", taskID(aws.ToString(t.Summary.QuantumTaskArn)), dev[strings.LastIndex(dev, "/")+1:], when(t.Summary.CreatedAt)), "")
 	}
 }
 

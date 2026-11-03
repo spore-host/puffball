@@ -73,6 +73,7 @@ type doctorFakes struct {
 	prices  *g0PriceList
 	cached  error
 	credErr error
+	noUV    bool
 }
 
 type credResults struct {
@@ -94,8 +95,14 @@ func doctorHarness(t *testing.T, mut func(*doctorFakes)) {
 	if mut != nil {
 		mut(d)
 	}
-	origF, origR, origP, origU := newFactory, newResults, newPricing, uvCached
-	t.Cleanup(func() { newFactory, newResults, newPricing, uvCached = origF, origR, origP, origU })
+	origF, origR, origP, origU, origFind := newFactory, newResults, newPricing, uvCached, findUV
+	t.Cleanup(func() { newFactory, newResults, newPricing, uvCached, findUV = origF, origR, origP, origU, origFind })
+	findUV = func(local.Options) (string, error) {
+		if d.noUV {
+			return "", local.ErrNoUV
+		}
+		return "/fake/uv", nil
+	}
 	newFactory = func(context.Context) (pbraket.Factory, error) { return d.f, nil }
 	newResults = func() results.Store { return credResults{d.res, d.credErr} }
 	newPricing = func(context.Context) (price.ProductsAPI, error) { return d.prices, nil }
@@ -125,7 +132,6 @@ func doctorChecks(t *testing.T, out string) map[string]check {
 }
 
 func TestDoctorAllGood(t *testing.T) {
-	needUV(t)
 	doctorHarness(t, nil)
 	out, errs, code := runPuff(t, "doctor", "--json")
 	if code != exitOK {
@@ -147,7 +153,6 @@ func TestDoctorAllGood(t *testing.T) {
 }
 
 func TestDoctorFindings(t *testing.T) {
-	needUV(t)
 	cases := []struct {
 		name, check, status, want string
 		code                      int
@@ -158,7 +163,12 @@ func TestDoctorFindings(t *testing.T) {
 		{"price drift", "price drift", statusFail, "Price List", exitError, func(d *doctorFakes) {
 			d.prices = loadPriceList(t, func(s string) string { return strings.Replace(s, `"USD":"0.0004250000"`, `"USD":"0.0005000000"`, 1) })
 		}},
-		{"price list unreadable", "price drift", statusUnknown, "AccessDenied", exitOK, func(d *doctorFakes) { d.prices.err = errors.New("AccessDenied for " + fakeAccount) }},
+		{"price list unreadable", "price drift", statusFail, "AccessDenied", exitError, func(d *doctorFakes) { d.prices.err = errors.New("AccessDenied for " + fakeAccount) }},
+		{"no uv", "uv", statusFail, "uv is not installed", exitError, func(d *doctorFakes) { d.noUV = true }},
+		{"task search fails", "device agreement us-west-1", statusFail, "injected", exitError, func(d *doctorFakes) {
+			b := d.f.Regions["us-west-1"]
+			b.Err, b.FailOn = errors.New("injected failure"), "SearchQuantumTasks"
+		}},
 		{"no credentials", "credentials", statusFail, "no valid credential", exitError, func(d *doctorFakes) { d.credErr = errors.New("no valid credential sources for " + fakeAccount) }},
 		{"region down", "region eu-north-1", statusFail, "injected", exitError, func(d *doctorFakes) { d.f.Regions["eu-north-1"].Err = errors.New("injected failure") }},
 	}
@@ -176,7 +186,6 @@ func TestDoctorFindings(t *testing.T) {
 }
 
 func TestDoctorTokenDirUnwritable(t *testing.T) {
-	needUV(t)
 	doctorHarness(t, nil)
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0o500); err != nil {
@@ -191,19 +200,9 @@ func TestDoctorTokenDirUnwritable(t *testing.T) {
 }
 
 func TestDoctorHuman(t *testing.T) {
-	needUV(t)
 	doctorHarness(t, func(d *doctorFakes) { d.res.exists = false })
 	out, errs, code := runPuff(t, "doctor")
 	if code != exitOK || !strings.Contains(out, "CHECK") || !strings.Contains(out, "To fix:") || !strings.Contains(out, "puff creates it on the first --real run") {
 		t.Errorf("exit %d:\n%s\n%s", code, out, errs)
-	}
-}
-
-// needUV skips when uv isn't installed: doctor's uv check then fails, which
-// is right, but the other checks are what these tests are about.
-func needUV(t *testing.T) {
-	t.Helper()
-	if _, err := local.FindUV(local.Options{}); err != nil {
-		t.Skip("uv not installed")
 	}
 }

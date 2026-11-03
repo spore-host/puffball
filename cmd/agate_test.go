@@ -110,9 +110,12 @@ func TestAGateEveryCommandWithoutReal(t *testing.T) {
 	for _, c := range leaves {
 		path := strings.Fields(strings.TrimPrefix(c.CommandPath(), rootCmd.Name()+" "))
 		if c.Flags().Lookup("real") == nil {
-			// Read-only commands may read STS and S3 (puff doctor does);
-			// writing is still refused.
-			newResults = func() results.Store { return readOnlyResults{t} }
+			// puff doctor reads STS and S3 HeadBucket; writing is still
+			// refused. Every other command gets the store that fails on
+			// any call.
+			if c == doctorCmd {
+				newResults = func() results.Store { return readOnlyResults{t} }
+			}
 			runOnce(c, append(path, "--json"))
 			newResults = func() results.Store { return failingResults{t} }
 			continue

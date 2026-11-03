@@ -231,3 +231,56 @@ func FindTask(ctx context.Context, f Factory, regions []string, account, id stri
 	}
 	return nil, fmt.Errorf("task %s was not found in any region (%s)", id, strings.Join(regions, ", "))
 }
+
+// LatestQPUTask finds a task on a QPU in each region, for evidence that
+// Braket accepted a QPU task there. It searches tasks created since recent
+// and returns the newest QPU task among them; finding none, it searches all
+// time and returns the first QPU task it meets, without reading further.
+// Regions are searched in parallel. A region with no QPU task maps to nil;
+// one whose search failed is in the *IncompleteError (law 3).
+func LatestQPUTask(ctx context.Context, f Factory, regions []string, recent time.Time) (map[string]*Task, error) {
+	isQPU := func(s types.QuantumTaskSummary) bool {
+		return strings.Contains(aws.ToString(s.DeviceArn), "::device/qpu/")
+	}
+	results := FanOut(ctx, regions, func(ctx context.Context, region string) (*Task, error) {
+		c, err := f.Braket(ctx, region)
+		if err != nil {
+			return nil, err
+		}
+		search := func(filters []types.SearchQuantumTasksFilter, first bool) (*Task, error) {
+			var best *Task
+			pg := braket.NewSearchQuantumTasksPaginator(c, &braket.SearchQuantumTasksInput{Filters: filters})
+			for pg.HasMorePages() {
+				page, err := pg.NextPage(ctx)
+				if err != nil {
+					return nil, fmt.Errorf("SearchQuantumTasks: %w", err)
+				}
+				for _, s := range page.QuantumTasks {
+					if !isQPU(s) {
+						continue
+					}
+					if first {
+						return &Task{Region: region, Summary: s}, nil
+					}
+					if best == nil || aws.ToTime(s.CreatedAt).After(aws.ToTime(best.Summary.CreatedAt)) {
+						best = &Task{Region: region, Summary: s}
+					}
+				}
+			}
+			return best, nil
+		}
+		t, err := search([]types.SearchQuantumTasksFilter{{Name: aws.String("createdAt"), Operator: types.SearchQuantumTasksFilterOperatorGte,
+			Values: []string{recent.UTC().Format(time.RFC3339)}}}, false)
+		if err != nil || t != nil {
+			return t, err
+		}
+		return search([]types.SearchQuantumTasksFilter{}, true)
+	})
+	out := map[string]*Task{}
+	for _, r := range results {
+		if r.Err == nil {
+			out[r.Region] = r.Value
+		}
+	}
+	return out, Incomplete("SearchQuantumTasks", results)
+}
