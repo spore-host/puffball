@@ -88,6 +88,14 @@ func Execute() {
 // run executes root with args and returns the process exit code, writing any
 // error to stderr.
 func run(root *cobra.Command, args []string, stderr io.Writer) int {
+	// Everything a command writes to stderr, and the error below, goes
+	// through the scrubber: SDK errors and warnings can carry account IDs and
+	// principal names (law 7). stdout is data (records, JSON) and isn't
+	// rewritten.
+	prev := root.ErrOrStderr()
+	root.SetErr(scrubWriter{prev})
+	defer root.SetErr(prev)
+	stderr = scrubWriter{stderr}
 	root.SetArgs(args)
 	err := root.Execute()
 	if err == nil {
@@ -100,6 +108,19 @@ func run(root *cobra.Command, args []string, stderr io.Writer) int {
 		return exitUsage
 	}
 	return exitError
+}
+
+// scrubWriter writes through internal/scrub: account IDs become <account>
+// and IAM principal names "scrubbed". Each Write is scrubbed whole, so a
+// value split across two writes could slip through; every stderr write in
+// puff is one formatted line.
+type scrubWriter struct{ w io.Writer }
+
+func (s scrubWriter) Write(p []byte) (int, error) {
+	if _, err := s.w.Write([]byte(display(string(p)))); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 // isCobraUsageError reports whether err came from cobra's own flag parsing or

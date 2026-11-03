@@ -169,6 +169,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   schema and recomputes the SHA-256 of its sources, compiled programs and
   calibration subsets. Exit 1 lists each problem; `--json` is supported.
 
+### Security
+- Everything `puff` writes to stderr, its final error and every warning,
+  now goes through the account-ID scrubber. AWS errors such as AccessDenied
+  ("User: arn:aws:iam::…:user/…") and the third-party agreement refusal
+  carry the account ID and principal name. They now print as `<account>`
+  and `scrubbed`. stdout (records, `--json`) is unchanged.
+- An all-zero task ID's last group (`…-000000000000`) is no longer shown as
+  `<account>`.
+
 ### Changed
 - **Repo tooling only, no change to `puff`:** G0 API probes (`make probe`,
   `make probe-paid REAL=1`, `make fixtures`, `make sweep-check`), the fixture

@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -28,9 +27,7 @@ func shortDevice(arn string) string { return taskID(arn) }
 
 // display scrubs account IDs from service text and shows them as <account>
 // (law 7: output gets pasted).
-func display(s string) string {
-	return strings.ReplaceAll(scrub.Error(errors.New(s)).Error(), "000000000000", "<account>")
-}
+func display(s string) string { return scrub.Display(s) }
 
 // taskView is a task as puff shows it. TaskArn has the account replaced by
 // <account> (law 7), so it is for reading, not for pasting into other tools;

@@ -72,3 +72,20 @@ func TestError(t *testing.T) {
 		t.Error("cause lost")
 	}
 }
+
+func TestDisplay(t *testing.T) {
+	cases := map[string]string{
+		"arn:aws:braket:us-west-1:123456789012:quantum-task/x":    "arn:aws:braket:us-west-1:<account>:quantum-task/x",
+		"amazon-braket-us-west-1-123456789012":                    "amazon-braket-us-west-1-<account>",
+		"User: arn:aws:iam::123456789012:user/alice is not":       "User: arn:aws:iam::<account>:user/scrubbed is not",
+		"task 00000000-0000-4000-8000-000000000000 was not found": "task 00000000-0000-4000-8000-000000000000 was not found",
+		"accepted for 000000000000.":                              "accepted for <account>.",
+		"two 123456789012 210987654321":                           "two <account> <account>",
+		"float 0.123456789012345":                                 "float 0.123456789012345",
+	}
+	for in, want := range cases {
+		if got := Display(in); got != want {
+			t.Errorf("Display(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

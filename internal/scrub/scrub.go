@@ -121,3 +121,21 @@ type scrubbedError struct{ err error }
 
 func (s scrubbedError) Error() string { return string(Scrub([]byte(s.err.Error()))) }
 func (s scrubbedError) Unwrap() error { return s.err }
+
+// Display is s scrubbed, with each account ID shown as "<account>" for
+// people to read. Only placeholders in account positions are replaced: a
+// UUID whose last group happens to be zeros stays as it is.
+func Display(s string) string {
+	b := Scrub([]byte(s))
+	var out []byte
+	last := 0
+	for _, r := range freeRuns(b) {
+		if string(b[r[0]:r[1]]) != Placeholder {
+			continue
+		}
+		out = append(out, b[last:r[0]]...)
+		out = append(out, "<account>"...)
+		last = r[1]
+	}
+	return string(append(out, b[last:]...))
+}
