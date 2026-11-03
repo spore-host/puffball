@@ -253,3 +253,48 @@ func (r Result) Outcomes() []string {
 	})
 	return out
 }
+
+// Cached reports whether the pinned simulator and Python are in uv's cache:
+// it imports the simulator through uv with --offline, so it never touches the
+// network, and returns the version that loaded. A cold run needs the network
+// (#5); this is how puff doctor tells.
+func Cached(ctx context.Context, o Options) (string, error) {
+	uv, err := FindUV(o)
+	if err != nil {
+		return "", err
+	}
+	dir, err := os.MkdirTemp("", "puff-cached-")
+	if err != nil {
+		return "", fmt.Errorf("uv cache check: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	args := []string{"run", "--isolated", "--no-config", "--no-project", "--python", PythonVersion, "--offline",
+		"--with", SimulatorPackage + "==" + SimulatorVersion, "python", "-I", "-c",
+		"import importlib.metadata as m, braket.default_simulator; print(m.version('" + SimulatorPackage + "'))"}
+	var stdout, stderr bytes.Buffer
+	// uv is exec.LookPath("uv") or a test's fake; the arguments are constants.
+	cmd := exec.CommandContext(ctx, uv, args...) // nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command -- uv's path and constant arguments
+	cmd.Dir, cmd.Env, cmd.Stdout, cmd.Stderr = dir, Env(os.Environ()), &stdout, &stderr
+	ownProcessGroup(cmd)
+	cmd.WaitDelay = 5 * time.Second
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if containsAny(msg, offlineMisses) {
+			return "", fmt.Errorf("%s==%s for Python %s isn't in uv's cache: %s", SimulatorPackage, SimulatorVersion, PythonVersion, lastLine(msg))
+		}
+		return "", fmt.Errorf("uv: %w: %s", err, lastLine(msg))
+	}
+	v := strings.TrimSpace(stdout.String())
+	if v != SimulatorVersion {
+		return "", fmt.Errorf("uv loaded %s %q, want %s", SimulatorPackage, v, SimulatorVersion)
+	}
+	return v, nil
+}
+
+func lastLine(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.LastIndex(s, "\n"); i >= 0 {
+		return strings.TrimSpace(s[i+1:])
+	}
+	return s
+}
