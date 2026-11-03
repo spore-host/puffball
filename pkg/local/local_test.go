@@ -248,3 +248,37 @@ func TestOutcomesOrder(t *testing.T) {
 		t.Errorf("Outcomes() = %v; want most frequent first, ties by bit string", got)
 	}
 }
+
+func TestCached(t *testing.T) {
+	uv, record := fakeUV(t, SimulatorVersion, 0)
+	v, err := Cached(context.Background(), Options{UV: uv})
+	if err != nil || v != SimulatorVersion {
+		t.Fatalf("Cached = %q, %v", v, err)
+	}
+	args, _ := os.ReadFile(record + ".args")
+	for _, want := range []string{"--offline", "--isolated", "--no-config", "--no-project", SimulatorPackage + "==" + SimulatorVersion, PythonVersion} {
+		if !strings.Contains(string(args), want+"\n") {
+			t.Errorf("uv args lack %q:\n%s", want, args)
+		}
+	}
+	env, _ := os.ReadFile(record + ".env")
+	if !strings.Contains(string(env), "AWS_EC2_METADATA_DISABLED=true") {
+		t.Error("cache check runs without the offline environment")
+	}
+	uv, _ = fakeUV(t, "1.40.0", 0)
+	if _, err := Cached(context.Background(), Options{UV: uv}); err == nil || !strings.Contains(err.Error(), "want "+SimulatorVersion) {
+		t.Errorf("wrong version: %v", err)
+	}
+	// uv's measured offline-miss message (#9).
+	dir := t.TempDir()
+	miss := filepath.Join(dir, "uv")
+	if err := os.WriteFile(miss, []byte("#!/bin/sh\necho 'hint: Packages were unavailable because the network was disabled.' >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Cached(context.Background(), Options{UV: miss}); err == nil || !strings.Contains(err.Error(), "isn't in uv's cache") {
+		t.Errorf("miss: %v", err)
+	}
+	if _, err := Cached(context.Background(), Options{UV: filepath.Join(dir, "nope")}); err == nil {
+		t.Error("missing uv binary passed")
+	}
+}

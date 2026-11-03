@@ -110,7 +110,14 @@ func TestAGateEveryCommandWithoutReal(t *testing.T) {
 	for _, c := range leaves {
 		path := strings.Fields(strings.TrimPrefix(c.CommandPath(), rootCmd.Name()+" "))
 		if c.Flags().Lookup("real") == nil {
+			// puff doctor reads STS and S3 HeadBucket; writing is still
+			// refused. Every other command gets the store that fails on
+			// any call.
+			if c == doctorCmd {
+				newResults = func() results.Store { return readOnlyResults{t} }
+			}
 			runOnce(c, append(path, "--json"))
+			newResults = func() results.Store { return failingResults{t} }
 			continue
 		}
 		fixture, ok := agateArgs[c.CommandPath()]
@@ -169,5 +176,22 @@ func (f failingResults) Create(context.Context, string, string) error {
 
 func (f failingResults) PutNew(context.Context, string, string, string, string, []byte) (bool, error) {
 	f.t.Error("S3 PutObject called before the gate approved")
+	return false, errors.New("no")
+}
+
+// readOnlyResults answers STS and HeadBucket and fails the test on any S3
+// write: a command without --real may read, never create.
+type readOnlyResults struct{ t *testing.T }
+
+func (readOnlyResults) Account(context.Context) (string, error) { return fakeAccount, nil }
+func (readOnlyResults) Exists(context.Context, string, string, string) (bool, error) {
+	return true, nil
+}
+func (f readOnlyResults) Create(context.Context, string, string) error {
+	f.t.Error("S3 CreateBucket called by a command without --real")
+	return errors.New("no")
+}
+func (f readOnlyResults) PutNew(context.Context, string, string, string, string, []byte) (bool, error) {
+	f.t.Error("S3 PutObject called by a command without --real")
 	return false, errors.New("no")
 }

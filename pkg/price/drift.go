@@ -61,6 +61,10 @@ type ProductsAPI interface {
 // ServiceCode is the Price List code for Amazon Braket (measured, #3).
 const ServiceCode = "AmazonBraket"
 
+// ListRegion is where the Price List API is served: its own endpoint, not a
+// Braket device region (measured, #3).
+const ListRegion = "us-east-1"
+
 // FetchProducts reads every AmazonBraket product from the Price List.
 func FetchProducts(ctx context.Context, c ProductsAPI) ([]Product, error) {
 	var entries []string

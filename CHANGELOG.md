@@ -147,6 +147,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When a spending limit rejects a `puff run --real` task, the error now
     says so, says nothing was created, and points at `puff budget`. It no
     longer suggests a retry.
+- **`puff doctor`** checks what puff needs, and says how to fix what's
+  missing:
+  - AWS credentials resolve, and every Braket region answers;
+  - each region's default results bucket exists (reported, never created);
+  - the client-token directory is writable;
+  - `uv` is installed and the pinned simulator is in uv's cache (checked
+    with `--offline`), so a local run works without the network;
+  - the price table is current and matches the AWS Price List;
+  - the third-party device user agreement, per QPU region. It shows as
+    accepted when Braket has accepted a QPU task there, and unknown
+    otherwise.
+
+  It reads only (STS, Braket searches, S3 HeadBucket, the Price List API;
+  none billed), calls no Cost Explorer, and changes nothing. It exits 1 if a
+  check fails. `--json` is supported.
+- When the third-party device user agreement isn't accepted, `puff run
+  --real` now says so, says nothing was created, and says where on the
+  Braket console to accept it.
 - **`puff record verify <file>`** checks a record offline against the
   schema and recomputes the SHA-256 of its sources, compiled programs and
   calibration subsets. Exit 1 lists each problem; `--json` is supported.

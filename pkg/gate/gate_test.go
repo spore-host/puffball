@@ -598,3 +598,15 @@ func TestSpendingLimitRejection(t *testing.T) {
 		t.Errorf("other error: %v", err)
 	}
 }
+
+// The third-party agreement refusal measured in G0 (#27) is named, with
+// where to accept it.
+func TestUserAgreementRefusal(t *testing.T) {
+	rc := &testutil.RecordingCreator{Err: &types.AccessDeniedException{Message: aws.String("User agreement has not been accepted for 123456789012. Please visit https://us-west-1.console.aws.amazon.com/braket/home?region=us-west-1#/permissions?tab=general to accept the user agreement.")}}
+	g, _ := newGate(t, gate.Options{Real: true, Creators: rc.Factory()})
+	p, _ := g.Approve([]gate.Estimate{est("r/a", 0.3425)})
+	_, err := p.Submit(context.Background(), "us-west-1", "r/a", input())
+	if !errors.Is(err, gate.ErrUserAgreement) || !strings.Contains(err.Error(), "Permissions and settings > General, in us-west-1") || strings.Contains(err.Error(), "123456789012") {
+		t.Errorf("err = %v", err)
+	}
+}

@@ -267,6 +267,10 @@ func (p *Permit) Submit(ctx context.Context, region, key string, in braketsdk.Cr
 	in.ClientToken = aws.String(rec.ClientToken)
 	_, _ = fmt.Fprintf(p.g.o.Out, "submitting %s: estimate %s (prices as of %s)\n", e.Label, Money(e.USD), e.AsOf)
 	out, err := c.CreateQuantumTask(ctx, &in)
+	if err != nil && agreementRefused(err) {
+		return Submission{}, scrub.Error(fmt.Errorf("CreateQuantumTask %s: %w. Nothing was created. Accept it on the Braket console, Permissions and settings > General, in %s, then retry the same key (%w)",
+			e.Label, ErrUserAgreement, region, err))
+	}
 	if err != nil && spendingLimitRejected(err) {
 		return Submission{}, scrub.Error(fmt.Errorf("CreateQuantumTask %s: %w: the estimate %s (prices as of %s) is more than the limit's remaining budget, or the limit's period isn't now. Nothing was created. `puff budget ls` shows the limit; raise or remove it to submit (%w)",
 			e.Label, ErrSpendingLimit, Money(e.USD), e.AsOf, err))
@@ -449,4 +453,17 @@ var ErrSpendingLimit = errors.New("the device's Braket spending limit rejected t
 func spendingLimitRejected(err error) bool {
 	var v *types.ValidationException
 	return errors.As(err, &v) && strings.Contains(strings.ToLower(aws.ToString(v.Message)), "spending limit")
+}
+
+// ErrUserAgreement means the third-party device user agreement isn't
+// accepted for the account in the task's region.
+var ErrUserAgreement = errors.New("the Braket third-party device user agreement isn't accepted in this region")
+
+// agreementRefused reports a CreateQuantumTask refused for the third-party
+// device agreement. Measured in G0 (#27): HTTP 403 AccessDeniedException
+// "User agreement has not been accepted for <account>. Please visit ... to
+// accept the user agreement."
+func agreementRefused(err error) bool {
+	var a *types.AccessDeniedException
+	return errors.As(err, &a) && strings.Contains(strings.ToLower(aws.ToString(a.Message)), "user agreement has not been accepted")
 }
