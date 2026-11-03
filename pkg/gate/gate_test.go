@@ -572,3 +572,29 @@ func TestDiffersWithoutRecord(t *testing.T) {
 		t.Errorf("record without fields: %v", err)
 	}
 }
+
+// A task Braket's spending limit rejects (the error measured in A-budget,
+// #7) says so, and doesn't suggest a retry would help.
+func TestSpendingLimitRejection(t *testing.T) {
+	rc := &testutil.RecordingCreator{Err: &types.ValidationException{Message: aws.String("Attempted to spend over the spending limit for the device.")}}
+	g, _ := newGate(t, gate.Options{Real: true, Creators: rc.Factory()})
+	p, err := g.Approve([]gate.Estimate{est("r/a", 0.725)})
+	if err != nil || p == nil {
+		t.Fatal(p, err)
+	}
+	_, err = p.Submit(context.Background(), "us-west-1", "r/a", input())
+	if !errors.Is(err, gate.ErrSpendingLimit) || strings.Contains(err.Error(), "retry the same key") || !strings.Contains(err.Error(), "Nothing was created") || !strings.Contains(err.Error(), "$0.725") {
+		t.Errorf("err = %v", err)
+	}
+	var v *types.ValidationException
+	if !errors.As(err, &v) {
+		t.Error("the service error isn't reachable")
+	}
+	// Any other validation error keeps the retry hint.
+	rc.Err = &types.ValidationException{Message: aws.String("bad shots")}
+	g2, _ := newGate(t, gate.Options{Real: true, Creators: rc.Factory()})
+	p2, _ := g2.Approve([]gate.Estimate{est("r/b", 0.725)})
+	if _, err := p2.Submit(context.Background(), "us-west-1", "r/b", input()); errors.Is(err, gate.ErrSpendingLimit) || !strings.Contains(err.Error(), "retry the same key") {
+		t.Errorf("other error: %v", err)
+	}
+}

@@ -42,6 +42,9 @@ type FakeBraket struct {
 	Tasks       []types.QuantumTaskSummary
 	TaskDetail  map[string]*braket.GetQuantumTaskOutput // by task ARN
 	TaskPage    int                                     // page size for task search; 0 = all in one page
+	// Limits are the region's spending limits, as SearchSpendingLimits
+	// returns them. FakeLimiter changes them as the service would.
+	Limits []types.SpendingLimitSummary
 
 	Err       error // returned by every call (FailAfter == 0) or after FailAfter pages
 	FailAfter int
@@ -350,4 +353,41 @@ func DevicesFactory(t testing.TB, dir string) *FakeFactory {
 		f.Regions[region] = fb
 	}
 	return f
+}
+
+// SearchSpendingLimits returns Limits, filtered by deviceArn (EQUAL) when
+// asked, TaskPage to a page.
+func (f *FakeBraket) SearchSpendingLimits(_ context.Context, in *braket.SearchSpendingLimitsInput, _ ...func(*braket.Options)) (*braket.SearchSpendingLimitsOutput, error) {
+	if err := f.record("SearchSpendingLimits"); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []types.SpendingLimitSummary
+	for _, l := range f.Limits {
+		keep := true
+		for _, flt := range in.Filters {
+			if aws.ToString(flt.Name) == "deviceArn" && (len(flt.Values) != 1 || flt.Values[0] != aws.ToString(l.DeviceArn)) {
+				keep = false
+			}
+		}
+		if keep {
+			out = append(out, l)
+		}
+	}
+	// Paged like task search: TaskPage items per page (0: one page).
+	size := f.TaskPage
+	if size <= 0 || size > len(out) {
+		size = max(len(out), 1)
+	}
+	pages := (len(out) + size - 1) / size
+	if pages == 0 {
+		pages = 1
+	}
+	i, err := pageIndex(in.NextToken, pages)
+	if err != nil {
+		return nil, err
+	}
+	end := min((i+1)*size, len(out))
+	return &braket.SearchSpendingLimitsOutput{SpendingLimits: out[min(i*size, len(out)):end], NextToken: nextToken(i, pages)}, nil
 }
