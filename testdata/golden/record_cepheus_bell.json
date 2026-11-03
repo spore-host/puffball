@@ -1,0 +1,663 @@
+{
+  "schema": "puffball.record/v0",
+  "recorded_at": "2026-10-31T12:00:00Z",
+  "task": {
+    "id": "617b7e2b-f77f-433b-8226-6cc55eb8d077",
+    "arn": "arn:aws:braket:us-west-1:<account>:quantum-task/617b7e2b-f77f-433b-8226-6cc55eb8d077",
+    "region": "us-west-1",
+    "status": "COMPLETED",
+    "created_at": "2026-10-28T16:56:07.878Z",
+    "ended_at": "2026-10-28T16:58:02.289Z",
+    "run_id": "g0c-1a1fdca0",
+    "project": "puffball-g0"
+  },
+  "device": {
+    "name": "Cepheus-1-108Q",
+    "provider": "rigetti",
+    "arn": "arn:aws:braket:us-west-1::device/qpu/rigetti/Cepheus-1-108Q"
+  },
+  "program": {
+    "format": "openqasm3",
+    "action_type": "braket.ir.openqasm.program",
+    "sources": [
+      {
+        "program": 0,
+        "format": "openqasm3",
+        "text": "OPENQASM 3.0;\nbit[2] b;\nqubit[2] q;\nh q[0];\ncnot q[0], q[1];\nb[0] = measure q[0];\nb[1] = measure q[1];",
+        "sha256": "b005e4add0e060b899bafa9fa942cb7161e1c64be49ed476a50338aa38879281"
+      }
+    ],
+    "submitted_action_sha256": "d1f6111540a72270f7f0fdc80eccf26be2fef03b7d1e06a43eda6b17a97a5dda"
+  },
+  "shots": {
+    "requested": 100,
+    "measured": 100
+  },
+  "physical_qubits": [
+    81,
+    90
+  ],
+  "results": [
+    {
+      "program": 0,
+      "executables": [
+        {
+          "executable": 0,
+          "measured_qubits": [
+            0,
+            1
+          ],
+          "shots": 100,
+          "counts": {
+            "00": 50,
+            "01": 3,
+            "10": 2,
+            "11": 45
+          }
+        }
+      ]
+    }
+  ],
+  "compiled_programs": [
+    {
+      "program": 0,
+      "format": "quil",
+      "text": "PRAGMA INITIAL_REWIRING \"NAIVE\"\nDECLARE ro BIT[2]\nPRAGMA PRESERVE_BLOCK\nRZ(1.5707963267948966) 81\nRZ(3.141592653589793) 90\nRX(1.5707963267948966) 81\nRX(1.5707963267948966) 90\nRZ(1.5707963267948966) 81\nRZ(1.5707963267948966) 90\nRX(-1.5707963267948966) 90\nCZ 81 90\nRZ(3.141592653589793) 90\nRX(1.5707963267948966) 90\nRZ(1.5707963267948966) 90\nRX(-1.5707963267948966) 90\nPRAGMA END_PRESERVE_BLOCK\nMEASURE 81 ro[0]\nMEASURE 90 ro[1]",
+      "sha256": "6c4189d3fc041a664c8acb04d444d6c9fc1b7e2b4b6083e3581cba866dfb1e8b"
+    }
+  ],
+  "calibration": {
+    "at_submission": {
+      "source": "puff run, just before submission (puffball/g0c-1a1fdca0/submission/cepheus/device.json)",
+      "read_at": "2026-10-28T16:55:07.878Z",
+      "device_capabilities_sha256": "b6aa60e019ad3bda8b9068064e88e7b93332c4804a9001aa4372289d37b3f04f",
+      "calibrated_from": "2026-10-24T14:19:27Z",
+      "calibrated_to": "2026-10-24T16:41:52Z",
+      "qubits": {
+        "81": {
+          "T1": {
+            "value": 2.2455568981394336e-05,
+            "unit": "S"
+          },
+          "T2": {
+            "value": 1.802719737775682e-05,
+            "unit": "S"
+          },
+          "oneQubitFidelity": [
+            {
+              "fidelityType": {
+                "name": "RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9991957710173444,
+              "standardError": 6.120941003396146e-06
+            },
+            {
+              "fidelityType": {
+                "name": "SIMULTANEOUS_RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9983993278645692,
+              "standardError": 8.300909890359537e-05
+            },
+            {
+              "fidelityType": {
+                "name": "READOUT"
+              },
+              "fidelity": 0.979
+            }
+          ]
+        },
+        "90": {
+          "T1": {
+            "value": 4.255322934887395e-05,
+            "unit": "S"
+          },
+          "T2": {
+            "value": 2.1206438850507325e-05,
+            "unit": "S"
+          },
+          "oneQubitFidelity": [
+            {
+              "fidelityType": {
+                "name": "RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9992871301601948,
+              "standardError": 8.744283231744802e-05
+            },
+            {
+              "fidelityType": {
+                "name": "SIMULTANEOUS_RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9988778510407418,
+              "standardError": 0.0002000855474034151
+            },
+            {
+              "fidelityType": {
+                "name": "READOUT"
+              },
+              "fidelity": 0.986
+            }
+          ]
+        }
+      },
+      "pairs": {
+        "81-90": {
+          "twoQubitGateFidelity": [
+            {
+              "gateName": "CZ",
+              "fidelity": 0.9932660643495208,
+              "standardError": 0.001209458798244524,
+              "fidelityType": {
+                "name": "INTERLEAVED_RANDOMIZED_BENCHMARKING"
+              }
+            }
+          ]
+        }
+      },
+      "benchmarks": {
+        "FreeInductionDecay": [
+          {
+            "characteristics": [
+              {
+                "error": 2.1690968875675192e-06,
+                "name": "T2",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:19:42Z",
+                "value": 2.1206438850507325e-05
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "error": 1.202834416841133e-06,
+                "name": "T2",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:21:31Z",
+                "value": 1.802719737775682e-05
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          }
+        ],
+        "FreeInversionRecovery": [
+          {
+            "characteristics": [
+              {
+                "error": 3.1083705921864567e-06,
+                "name": "T1",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:19:33Z",
+                "value": 4.255322934887395e-05
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "error": 1.3643167487336984e-06,
+                "name": "T1",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:21:35Z",
+                "value": 2.2455568981394336e-05
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          }
+        ],
+        "randomized_benchmark_1q": [
+          {
+            "characteristics": [
+              {
+                "error": 6.120941003396146e-06,
+                "name": "fRB",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:21:23Z",
+                "value": 0.9991957710173444
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "error": 8.744283231744802e-05,
+                "name": "fRB",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:19:27Z",
+                "value": 0.9992871301601948
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          }
+        ]
+      },
+      "instructions": {
+        "CZ": [
+          {
+            "characteristics": [
+              {
+                "error": 0.001209458798244524,
+                "name": "fCZ",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T15:00:58Z",
+                "value": 0.9932660643495208
+              }
+            ],
+            "node_ids": [
+              81,
+              90
+            ]
+          }
+        ],
+        "I": [
+          {
+            "characteristics": [],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [],
+            "node_ids": [
+              90
+            ]
+          }
+        ],
+        "MEASURE": [
+          {
+            "characteristics": [
+              {
+                "name": "fRO",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T16:41:51Z",
+                "value": 0.979
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "name": "fRO",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T16:41:52Z",
+                "value": 0.986
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          }
+        ],
+        "RX": [
+          {
+            "characteristics": [],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [],
+            "node_ids": [
+              90
+            ]
+          }
+        ],
+        "RZ": [
+          {
+            "characteristics": [],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [],
+            "node_ids": [
+              90
+            ]
+          }
+        ]
+      },
+      "subset_sha256": "86087b282634bf3be7929c530ec1c9a8dbda12678f2f4a98404941c87ebc5ca3"
+    },
+    "at_completion": {
+      "source": "GetDevice when the record was made",
+      "read_at": "2026-10-31T12:00:00Z",
+      "device_capabilities_sha256": "b6aa60e019ad3bda8b9068064e88e7b93332c4804a9001aa4372289d37b3f04f",
+      "calibrated_from": "2026-10-24T14:19:27Z",
+      "calibrated_to": "2026-10-24T16:41:52Z",
+      "qubits": {
+        "81": {
+          "T1": {
+            "value": 2.2455568981394336e-05,
+            "unit": "S"
+          },
+          "T2": {
+            "value": 1.802719737775682e-05,
+            "unit": "S"
+          },
+          "oneQubitFidelity": [
+            {
+              "fidelityType": {
+                "name": "RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9991957710173444,
+              "standardError": 6.120941003396146e-06
+            },
+            {
+              "fidelityType": {
+                "name": "SIMULTANEOUS_RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9983993278645692,
+              "standardError": 8.300909890359537e-05
+            },
+            {
+              "fidelityType": {
+                "name": "READOUT"
+              },
+              "fidelity": 0.979
+            }
+          ]
+        },
+        "90": {
+          "T1": {
+            "value": 4.255322934887395e-05,
+            "unit": "S"
+          },
+          "T2": {
+            "value": 2.1206438850507325e-05,
+            "unit": "S"
+          },
+          "oneQubitFidelity": [
+            {
+              "fidelityType": {
+                "name": "RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9992871301601948,
+              "standardError": 8.744283231744802e-05
+            },
+            {
+              "fidelityType": {
+                "name": "SIMULTANEOUS_RANDOMIZED_BENCHMARKING"
+              },
+              "fidelity": 0.9988778510407418,
+              "standardError": 0.0002000855474034151
+            },
+            {
+              "fidelityType": {
+                "name": "READOUT"
+              },
+              "fidelity": 0.986
+            }
+          ]
+        }
+      },
+      "pairs": {
+        "81-90": {
+          "twoQubitGateFidelity": [
+            {
+              "gateName": "CZ",
+              "fidelity": 0.9932660643495208,
+              "standardError": 0.001209458798244524,
+              "fidelityType": {
+                "name": "INTERLEAVED_RANDOMIZED_BENCHMARKING"
+              }
+            }
+          ]
+        }
+      },
+      "benchmarks": {
+        "FreeInductionDecay": [
+          {
+            "characteristics": [
+              {
+                "error": 2.1690968875675192e-06,
+                "name": "T2",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:19:42Z",
+                "value": 2.1206438850507325e-05
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "error": 1.202834416841133e-06,
+                "name": "T2",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:21:31Z",
+                "value": 1.802719737775682e-05
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          }
+        ],
+        "FreeInversionRecovery": [
+          {
+            "characteristics": [
+              {
+                "error": 3.1083705921864567e-06,
+                "name": "T1",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:19:33Z",
+                "value": 4.255322934887395e-05
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "error": 1.3643167487336984e-06,
+                "name": "T1",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:21:35Z",
+                "value": 2.2455568981394336e-05
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          }
+        ],
+        "randomized_benchmark_1q": [
+          {
+            "characteristics": [
+              {
+                "error": 6.120941003396146e-06,
+                "name": "fRB",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:21:23Z",
+                "value": 0.9991957710173444
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "error": 8.744283231744802e-05,
+                "name": "fRB",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T14:19:27Z",
+                "value": 0.9992871301601948
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          }
+        ]
+      },
+      "instructions": {
+        "CZ": [
+          {
+            "characteristics": [
+              {
+                "error": 0.001209458798244524,
+                "name": "fCZ",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T15:00:58Z",
+                "value": 0.9932660643495208
+              }
+            ],
+            "node_ids": [
+              81,
+              90
+            ]
+          }
+        ],
+        "I": [
+          {
+            "characteristics": [],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [],
+            "node_ids": [
+              90
+            ]
+          }
+        ],
+        "MEASURE": [
+          {
+            "characteristics": [
+              {
+                "name": "fRO",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T16:41:51Z",
+                "value": 0.979
+              }
+            ],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [
+              {
+                "name": "fRO",
+                "parameter_values": [],
+                "timestamp": "2026-10-24T16:41:52Z",
+                "value": 0.986
+              }
+            ],
+            "node_ids": [
+              90
+            ]
+          }
+        ],
+        "RX": [
+          {
+            "characteristics": [],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [],
+            "node_ids": [
+              90
+            ]
+          }
+        ],
+        "RZ": [
+          {
+            "characteristics": [],
+            "node_ids": [
+              81
+            ]
+          },
+          {
+            "characteristics": [],
+            "node_ids": [
+              90
+            ]
+          }
+        ]
+      },
+      "subset_sha256": "86087b282634bf3be7929c530ec1c9a8dbda12678f2f4a98404941c87ebc5ca3"
+    }
+  },
+  "cost": {
+    "kind": "estimate",
+    "prices_as_of": "2026-10",
+    "estimate_usd": "$0.3425",
+    "arithmetic": "$0.30 + 100 x $0.000425 = $0.3425",
+    "per_task_usd": "$0.30",
+    "per_shot_usd": "$0.000425"
+  },
+  "software": {
+    "braket.ir.openqasm.program": "1",
+    "braket.task_result.gate_model_task_result": "1",
+    "braket.task_result.rigetti_metadata": "1",
+    "github.com/aws/aws-sdk-go-v2/service/braket": "normalized",
+    "go": "normalized",
+    "puff": "test"
+  },
+  "tags": {
+    "puffball:est-usd": "0.3425",
+    "puffball:project": "puffball-g0",
+    "puffball:run-id": "g0c-1a1fdca0",
+    "puffball:rung": "qpu"
+  },
+  "objects": [
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/617b7e2b-f77f-433b-8226-6cc55eb8d077/results.json",
+      "etag": "\"629f5d0a84aa03fedba16c3b18689af3\"",
+      "bytes": 4929,
+      "sha256": "629f5d0a84aa03fedba16c3b18689af32153c4e3e50ac83ac3375ee3578ef71e",
+      "role": "results"
+    },
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/submission/cepheus/action.json",
+      "etag": "\"extra\"",
+      "bytes": 242,
+      "sha256": "d1f6111540a72270f7f0fdc80eccf26be2fef03b7d1e06a43eda6b17a97a5dda",
+      "role": "submitted-action"
+    },
+    {
+      "bucket": "amazon-braket-us-west-1-<account>",
+      "key": "puffball/g0c-1a1fdca0/submission/cepheus/device.json",
+      "etag": "\"extra\"",
+      "bytes": 527038,
+      "sha256": "1220ac12b6c5e6173f168891bbb315a53890e95c69478fa6e3a04e4bbf3bcdd5",
+      "role": "device-at-submission"
+    }
+  ],
+  "missing": [
+    {
+      "field": "shots.successful",
+      "reason": "the service reports successful shots only for some tasks (program sets); not reported for this one"
+    }
+  ]
+}

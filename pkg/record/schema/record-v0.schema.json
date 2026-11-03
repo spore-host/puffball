@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/spore-host/puffball/pkg/record/schema/record-v0.schema.json",
+  "title": "puffball.record/v0",
+  "description": "Provenance record for one Amazon Braket task's result, written by puff record. A field the record couldn't fill is named in missing[] with the reason; absent is never the same as empty. Hashes are hex SHA-256: of an S3 object's body as stored (objects[].sha256), of a text's UTF-8 bytes (sources, compiled programs), or of a calibration subset's canonical JSON: keys sorted at every level, no whitespace, numbers as written, HTML escaping off (subset_sha256). In counts, bit i of each key is measured_qubits[i] (logical qubits as the program numbers them); physical_qubits are the device qubits the compiled program uses. Account IDs appear as <account>.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "recorded_at", "task", "device", "program", "shots", "physical_qubits", "results", "compiled_programs", "calibration", "cost", "software", "tags", "objects", "missing"],
+  "properties": {
+    "schema": {"const": "puffball.record/v0"},
+    "recorded_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T"},
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "arn", "region", "status", "created_at", "ended_at"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+        "arn": {"type": "string", "pattern": "^arn:aws:braket:[a-z0-9-]+:<account>:quantum-task/"},
+        "region": {"type": "string"},
+        "status": {"enum": ["CREATED", "QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELLING", "CANCELLED"]},
+        "created_at": {"type": ["string", "null"]},
+        "ended_at": {"type": ["string", "null"]},
+        "run_id": {"type": "string"},
+        "project": {"type": "string"}
+      }
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "provider", "arn"],
+      "properties": {"name": {"type": "string"}, "provider": {"type": "string"}, "arn": {"type": "string", "pattern": "^arn:aws:braket:[a-z0-9-]*::device/"}}
+    },
+    "program": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "action_type", "sources"],
+      "properties": {
+        "format": {"enum": ["openqasm3", "openqasm3-program-set", "ahs", "unknown"]},
+        "action_type": {"type": "string"},
+        "sources": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+        "submitted_action_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "shots": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested", "measured"],
+      "properties": {"requested": {"type": "integer"}, "measured": {"type": "integer"}, "successful": {"type": "integer"}}
+    },
+    "physical_qubits": {"type": "array", "items": {"type": "integer"}},
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["program", "executables"],
+        "properties": {
+          "program": {"type": "integer"},
+          "executables": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["executable", "measured_qubits", "shots", "counts"],
+              "properties": {
+                "executable": {"type": "integer"},
+                "measured_qubits": {"type": "array", "items": {"type": "integer"}},
+                "shots": {"type": "integer"},
+                "counts": {"type": "object", "additionalProperties": {"type": "integer"}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "compiled_programs": {"type": "array", "items": {"$ref": "#/$defs/text"}},
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "at_submission": {"$ref": "#/$defs/calibration"},
+        "at_completion": {"$ref": "#/$defs/calibration"},
+        "at_record": {"$ref": "#/$defs/calibration"}
+      }
+    },
+    "cost": {
+      "type": ["object", "null"],
+      "required": ["kind", "prices_as_of", "estimate_usd", "arithmetic"],
+      "properties": {
+        "kind": {"const": "estimate"},
+        "prices_as_of": {"type": "string"},
+        "estimate_usd": {"type": "string", "pattern": "^\\$\\d+\\.\\d+$"},
+        "arithmetic": {"type": "string"}
+      }
+    },
+    "software": {"type": "object", "additionalProperties": {"type": "string"}},
+    "tags": {"type": "object", "additionalProperties": {"type": "string"}},
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bucket", "key", "etag", "bytes", "sha256", "role"],
+        "properties": {
+          "bucket": {"type": "string"},
+          "key": {"type": "string"},
+          "etag": {"type": "string"},
+          "bytes": {"type": "integer"},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "role": {"enum": ["results", "program", "executable", "metadata", "submitted-action", "device-at-submission"]}
+        }
+      }
+    },
+    "missing": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "reason"],
+        "properties": {"field": {"type": "string", "pattern": "^."}, "reason": {"type": "string", "pattern": "^."}}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["program", "format", "text", "sha256"],
+      "properties": {"program": {"type": "integer"}, "format": {"enum": ["openqasm3", "quil", "ahs", "unknown"]}, "text": {"type": "string"}, "sha256": {"$ref": "#/$defs/sha256"}}
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "read_at", "device_capabilities_sha256", "qubits", "pairs", "benchmarks", "instructions", "subset_sha256"],
+      "properties": {
+        "source": {"type": "string"},
+        "read_at": {"type": "string"},
+        "device_capabilities_sha256": {"$ref": "#/$defs/sha256"},
+        "calibrated_from": {"type": "string"},
+        "calibrated_to": {"type": "string"},
+        "qubits": {"type": "object"},
+        "pairs": {"type": "object"},
+        "benchmarks": {"type": "object", "additionalProperties": {"type": "array"}},
+        "instructions": {"type": "object", "additionalProperties": {"type": "array"}},
+        "subset_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

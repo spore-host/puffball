@@ -15,6 +15,7 @@ import (
 	pbraket "github.com/spore-host/puffball/pkg/braket"
 	"github.com/spore-host/puffball/pkg/ledger"
 	"github.com/spore-host/puffball/pkg/price"
+	"github.com/spore-host/puffball/pkg/results"
 	"github.com/spore-host/puffball/pkg/testutil"
 )
 
@@ -43,16 +44,17 @@ type fakeReader struct {
 	owners []string
 }
 
-func (f *fakeReader) Read(_ context.Context, region, bucket, key, account string, _ int64) ([]byte, error) {
+func (f *fakeReader) Read(_ context.Context, region, bucket, key, account string, _ int64) (results.Object, error) {
 	f.reads = append(f.reads, region+" "+bucket+"/"+key)
 	f.owners = append(f.owners, account)
 	if f.err != nil {
-		return nil, f.err
+		return results.Object{}, f.err
 	}
 	if !strings.Contains(key, sv1ID) {
-		return nil, errors.New("NoSuchKey")
+		return results.Object{}, errors.New("NoSuchKey")
 	}
-	return os.ReadFile("../../testdata/tasks/sv1-bell-100/s3/results.json")
+	b, err := os.ReadFile("../../testdata/tasks/sv1-bell-100/s3/results.json")
+	return results.Object{Body: b, ETag: `"fixture"`}, err
 }
 
 func opts(t *testing.T, r *fakeReader, c *ledger.FileCache) ledger.Options {
