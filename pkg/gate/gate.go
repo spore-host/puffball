@@ -26,6 +26,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	braketsdk "github.com/aws/aws-sdk-go-v2/service/braket"
+	"github.com/aws/aws-sdk-go-v2/service/braket/types"
 
 	"github.com/spore-host/puffball/internal/scrub"
 	"github.com/spore-host/puffball/pkg/awscfg"
@@ -266,6 +267,10 @@ func (p *Permit) Submit(ctx context.Context, region, key string, in braketsdk.Cr
 	in.ClientToken = aws.String(rec.ClientToken)
 	_, _ = fmt.Fprintf(p.g.o.Out, "submitting %s: estimate %s (prices as of %s)\n", e.Label, Money(e.USD), e.AsOf)
 	out, err := c.CreateQuantumTask(ctx, &in)
+	if err != nil && spendingLimitRejected(err) {
+		return Submission{}, scrub.Error(fmt.Errorf("CreateQuantumTask %s: %w: the estimate %s (prices as of %s) is more than the limit's remaining budget, or the limit's period isn't now. Nothing was created. `puff budget ls` shows the limit; raise or remove it to submit (%w)",
+			e.Label, ErrSpendingLimit, Money(e.USD), e.AsOf, err))
+	}
 	if err != nil {
 		// SDK errors can name the results bucket or a principal (law 7).
 		return Submission{}, scrub.Error(fmt.Errorf("CreateQuantumTask %s: %w (retry the same key to reuse its client token)", e.Label, err))
@@ -432,4 +437,16 @@ func awsCreators() func(ctx context.Context, region string) (braket.Creator, err
 		clients[region] = c
 		return c, nil
 	}
+}
+
+// ErrSpendingLimit means Braket's spending limit on the device rejected the
+// task at creation: nothing was created, so nothing is charged.
+var ErrSpendingLimit = errors.New("the device's Braket spending limit rejected the task")
+
+// spendingLimitRejected reports a CreateQuantumTask rejected by a spending
+// limit. Measured 2026-11-02 (A-budget, #7): ValidationException
+// "Attempted to spend over the spending limit for the device."
+func spendingLimitRejected(err error) bool {
+	var v *types.ValidationException
+	return errors.As(err, &v) && strings.Contains(strings.ToLower(aws.ToString(v.Message)), "spending limit")
 }

@@ -10,6 +10,10 @@ submitted while a limit exists count against it.
 Spending limits cover QPU tasks only: not simulators, notebooks, Hybrid Job
 instances or Braket Direct reservations (Amazon Braket Developer Guide).
 
+A limit set without --until gets a period from Braket anyway: from its
+creation to 2125-12-30 (measured). An update without --until leaves the
+period as it is.
+
 Setting or removing a limit isn't billed. puff leaves a limit it didn't
 create alone unless --include-others is given.
 

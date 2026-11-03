@@ -144,6 +144,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     given.
   - Spending limits cover QPU tasks only, so simulators are refused.
     Setting or removing a limit isn't billed. `--json` is supported.
+  - When a spending limit rejects a `puff run --real` task, the error now
+    says so, says nothing was created, and points at `puff budget`. It no
+    longer suggests a retry.
 - **`puff record verify <file>`** checks a record offline against the
   schema and recomputes the SHA-256 of its sources, compiled programs and
   calibration subsets. Exit 1 lists each problem; `--json` is supported.
