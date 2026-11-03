@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -74,5 +75,49 @@ func TestRootHasNoUnhiddenStubs(t *testing.T) {
 		if c.Short == "" && !c.Hidden {
 			t.Errorf("command %q has no Short description", c.Name())
 		}
+	}
+}
+
+// TestRunScrubsStderr is #48: no account ID or principal name reaches
+// stderr, whether in the final error or in a warning a command writes.
+func TestRunScrubsStderr(t *testing.T) {
+	cases := []struct{ name, warning, err string }{
+		{"access denied", "",
+			"operation error Braket: SearchDevices, AccessDeniedException: User: arn:aws:iam::123456789012:user/alice is not authorized to perform: braket:SearchDevices"},
+		{"assumed role", "", "AccessDenied: User: arn:aws:sts::123456789012:assumed-role/Admin/alice-session is not authorized"},
+		{"agreement (#27)", "",
+			"AccessDeniedException: User agreement has not been accepted for 123456789012. Please visit https://us-west-1.console.aws.amazon.com/braket/home"},
+		{"bucket", "", "HeadBucket amazon-braket-us-west-1-123456789012: 403 Forbidden"},
+		{"warning", "warning: polling failed: arn:aws:braket:us-west-1:123456789012:quantum-task/x", "stopped"},
+		{"usage error", "", "x"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := &cobra.Command{Use: "puff", SilenceErrors: true, SilenceUsage: true}
+			root.AddCommand(&cobra.Command{Use: "boom", RunE: func(c *cobra.Command, _ []string) error {
+				if tc.warning != "" {
+					_, _ = fmt.Fprintln(c.ErrOrStderr(), tc.warning)
+				}
+				if tc.name == "usage error" {
+					return usageErrorf("--account 123456789012 is not a flag")
+				}
+				return errors.New(tc.err)
+			}})
+			var errb bytes.Buffer
+			root.SetErr(&errb)
+			code := run(root, []string{"boom"}, &errb)
+			out := errb.String()
+			if code == exitOK || out == "" {
+				t.Fatalf("exit %d, stderr %q", code, out)
+			}
+			for _, leak := range []string{"123456789012", "alice", "Admin/"} {
+				if strings.Contains(out, leak) {
+					t.Errorf("stderr carries %q:\n%s", leak, out)
+				}
+			}
+			if !strings.Contains(out, "<account>") {
+				t.Errorf("account not shown as <account>:\n%s", out)
+			}
+		})
 	}
 }

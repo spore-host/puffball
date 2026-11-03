@@ -789,5 +789,5 @@ func utc(t *time.Time) *time.Time {
 }
 
 func displayBucket(b string) string {
-	return strings.ReplaceAll(string(scrub.Scrub([]byte(b))), scrub.Placeholder, "<account>")
+	return scrub.Display(b)
 }
