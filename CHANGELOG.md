@@ -199,4 +199,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer mistaken for an account ID and printed as `000000000000` in errors
   and scrubbed fixtures.
 
+### Documentation
+- **README:** a worked example from the local simulator to a recorded result
+  on Cepheus (GHZ-3, real output with the account ID shown as `<account>`).
+  The command table and the Regions and Tags sections are brought up to
+  date.
+
 [Unreleased]: https://github.com/spore-host/puffball/commits/main
