@@ -24,7 +24,8 @@ var agateArgs = map[string][]string{
 	"puff run": {"../testdata/programs/bell.qasm", "--device", "cepheus", "--shots", "100"},
 }
 
-// leafCommands returns every runnable, user-visible command.
+// leafCommands returns every runnable, user-visible command, including
+// runnable ones that have subcommands.
 func leafCommands(root *cobra.Command) []*cobra.Command {
 	var out []*cobra.Command
 	var walk func(*cobra.Command)
@@ -33,11 +34,14 @@ func leafCommands(root *cobra.Command) []*cobra.Command {
 			if sub.Hidden || sub.Name() == "help" || sub.Name() == "completion" {
 				continue
 			}
+			// A command with subcommands can still run itself (puff record
+			// <task> has puff record verify under it): include it too.
+			if sub.Runnable() {
+				out = append(out, sub)
+			}
 			if sub.HasSubCommands() {
 				walk(sub)
-				continue
 			}
-			out = append(out, sub)
 		}
 	}
 	walk(root)
